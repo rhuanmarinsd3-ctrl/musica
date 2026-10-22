@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#12665b">
+  <meta name="color-scheme" content="light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Voz e Sinais · Comunicação do seu jeito</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="catalog.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="icon-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
+    <symbol id="icon-write" viewBox="0 0 24 24"><path d="m16 3 5 5-12 12-6 1 1-6L16 3Z"/><path d="m13 6 5 5M3 21l6-1"/></symbol>
+    <symbol id="icon-listen" viewBox="0 0 24 24"><path d="M5 10a7 7 0 0 1 14 0c0 4-5 4-5 7a4 4 0 0 1-8 0"/><path d="M9 10a3 3 0 0 1 6 0c0 2-3 2-3 4"/></symbol>
+    <symbol id="icon-volume" viewBox="0 0 24 24"><path d="m11 4-6 5H2v6h3l6 5V4Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></symbol>
+    <symbol id="icon-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="icon-heart" viewBox="0 0 24 24"><path d="M20.5 4.5a5.1 5.1 0 0 0-7.2 0L12 5.8l-1.3-1.3a5.1 5.1 0 1 0-7.2 7.2L12 21l8.5-9.3a5.1 5.1 0 0 0 0-7.2Z"/></symbol>
+    <symbol id="icon-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="icon-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></symbol>
+    <symbol id="icon-shield" viewBox="0 0 24 24"><path d="m12 2 8 3v6c0 5-8 11-8 11S4 16 4 11V5l8-3Z"/><path d="m8 11 3 3 5-6"/></symbol>
+    <symbol id="icon-text" viewBox="0 0 24 24"><path d="M4 5h16M12 5v15M8 20h8M4 5v3m16-3v3"/></symbol>
+    <symbol id="icon-hand" viewBox="0 0 24 24"><path d="M8 12V5a2 2 0 0 1 4 0v6-8a2 2 0 0 1 4 0v8-6a2 2 0 0 1 4 0v9c0 5-3 8-7 8h-1c-3 0-5-2-7-5l-3-4a2 2 0 0 1 3-2l3 3"/></symbol>
+    <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+  </svg>
+  <a class="skip-link" href="#main-content">Ir para o conteúdo</a>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" href="#comunicar" aria-label="Voz e Sinais, início">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><i></i><i></i><i></i></span>
+        <span>voz<span class="brand-connector"> e </span>sinais<span class="brand-dot">.</span></span>
+      </a>
+      <nav class="main-nav" aria-label="Modos de comunicação">
+        <div class="nav-tabs" role="tablist" aria-label="Escolha como se comunicar">
+          <button class="nav-tab active" id="tab-communicate" role="tab" aria-selected="true" aria-controls="panel-communicate" data-tab="communicate"><svg class="icon" aria-hidden="true"><use href="#icon-grid"/></svg><span>Comunicar</span></button>
+          <button class="nav-tab" id="tab-write" role="tab" aria-selected="false" aria-controls="panel-write" tabindex="-1" data-tab="write"><svg class="icon" aria-hidden="true"><use href="#icon-write"/></svg><span>Escrever</span></button>
+          <button class="nav-tab" id="tab-listen" role="tab" aria-selected="false" aria-controls="panel-listen" tabindex="-1" data-tab="listen"><svg class="icon" aria-hidden="true"><use href="#icon-listen"/></svg><span>Ouvir</span></button>
+        </div>
+      </nav>
+      <span class="offline-badge"><span aria-hidden="true"></span>Sem internet</span>
+    </div>
+  </header>
+  <main id="main-content" tabindex="-1">
+    <section id="panel-communicate" class="panel" role="tabpanel" aria-labelledby="tab-communicate">
+      <div class="hero">
+        <div class="hero-copy"><span class="eyebrow">UM TOQUE, MUITAS POSSIBILIDADES</span><h1>Sua voz.<br><span>Do seu jeito.</span></h1><p>Escolha uma imagem e deixe o celular falar por você.</p><div class="hero-note"><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>Sem anúncios. No seu tempo.</div></div>
+        <div class="hero-art" aria-hidden="true"><span class="art-spark spark-one">✦</span><span class="art-spark spark-two">✧</span><div class="art-card art-card-back"><span>💬</span></div><div class="art-card art-card-front"><span>😊</span><span>Quero conversar!</span><div class="art-sound"><i></i><i></i><i></i><i></i><i></i></div></div><div class="art-label"><span>💚</span> Cada voz importa.</div></div>
+      </div>
+      <div class="section-top"><div><h2>O que você quer dizer?</h2><p>Toque em um cartão para falar.</p></div><label class="search-field"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><span class="sr-only">Buscar um cartão</span><input id="card-search" type="search" placeholder="Buscar um cartão" autocomplete="off" maxlength="80"></label></div>
+      <div id="categories" class="categories" role="group" aria-label="Filtrar cartões por categoria"></div>
+      <div class="results-summary" id="results-summary" aria-live="polite"></div>
+      <div class="card-grid" id="card-grid"></div>
+      <div class="empty-state" id="cards-empty" hidden><span aria-hidden="true">🔎</span><h3>Nenhum cartão por aqui</h3><p id="cards-empty-message">Tente outra palavra ou categoria.</p><button class="button button-secondary" id="reset-search">Ver todos os cartões</button></div>
+      <aside class="phrase-bar" id="phrase-bar" aria-label="Última frase escolhida" hidden><div class="phrase-symbol" aria-hidden="true"><svg class="icon"><use href="#icon-volume"/></svg></div><div class="phrase-copy"><span class="small-label">SUA FRASE</span><p id="selected-phrase">Escolha um cartão para começar.</p></div><button class="button button-primary repeat-button" id="repeat-phrase" disabled><svg class="icon" aria-hidden="true"><use href="#icon-volume"/></svg><span>Falar de novo</span></button><button class="button-icon stop-speech" id="stop-speech" aria-label="Parar a fala" title="Parar a fala" disabled><svg class="icon" aria-hidden="true"><use href="#icon-stop"/></svg></button></aside>
+    </section>
+    <section id="panel-write" class="panel" role="tabpanel" aria-labelledby="tab-write" hidden>
+      <div class="page-heading"><span class="eyebrow">SUAS PALAVRAS TÊM ESPAÇO AQUI</span><h1>Escreva.<br><span>A gente dá voz.</span></h1><p>Digite o que você quer dizer e toque em “Falar”.</p></div>
+      <div class="writing-layout"><div class="writing-card"><label for="message-input" class="field-label">O que você quer dizer?</label><textarea id="message-input" placeholder="Olá! Eu gostaria de conversar com você…" maxlength="1000" rows="7" spellcheck="true"></textarea><div class="writing-meta"><span>Você pode escrever até 1.000 caracteres.</span><span id="character-count" aria-live="off">0 / 1.000</span></div><div class="writing-actions"><button class="button button-primary" id="speak-message" disabled><svg class="icon" aria-hidden="true"><use href="#icon-volume"/></svg>Falar</button><button class="button-icon stop-message-speech" id="stop-message-speech" aria-label="Parar leitura da frase" title="Parar leitura" hidden><svg class="icon" aria-hidden="true"><use href="#icon-stop"/></svg></button><button class="button button-secondary" id="save-message" disabled><svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>Salvar frase</button><button class="button-icon" id="clear-message" aria-label="Apagar texto digitado" title="Apagar texto" disabled><svg class="icon" aria-hidden="true"><use href="#icon-trash"/></svg></button></div><p class="voice-notice" id="voice-notice"></p></div><aside class="writing-tip"><span class="tip-illustration" aria-hidden="true">💬</span><h2>Uma conversa começa<br>do seu jeito.</h2><p>Vale uma palavra, uma pergunta ou uma história inteira.</p><div class="privacy-note"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg><span>Suas frases ficam somente neste aparelho.</span></div></aside></div>
+      <div class="section-top saved-heading"><div><h2>Minhas frases</h2><p>Guarde o que você fala com frequência.</p></div><span class="count-badge" id="saved-count">0 salvas</span></div><div id="saved-phrases" class="saved-phrases"></div><div id="saved-empty" class="quiet-empty"><svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg><p>Suas frases salvas vão aparecer aqui.</p></div>
+    </section>
+    <section id="panel-listen" class="panel" role="tabpanel" aria-labelledby="tab-listen" hidden>
+      <div class="page-heading"><span class="eyebrow">MAIS JEITOS DE ENTENDER</span><h1>A conversa acontece.<br><span>Você acompanha.</span></h1><p>O celular transforma o que a outra pessoa fala em texto.</p></div>
+      <div class="listen-card"><div class="listen-intro"><span class="listen-illustration" aria-hidden="true">👋</span><div><h2 id="listen-title">Vamos ouvir?</h2><p id="listen-status">Toque no microfone e aproxime o celular de quem está falando.</p></div></div><button class="microphone-button" id="listen-toggle" aria-pressed="false"><span class="microphone-icon"><svg class="icon" aria-hidden="true"><use href="#icon-mic"/></svg></span><span id="listen-button-label">Começar a ouvir</span></button><p id="recognizer-notice" class="recognizer-notice"></p><div class="listen-privacy"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>O áudio é processado no aparelho e não é gravado.</div></div>
+      <div class="section-top transcript-heading"><div><h2>Como você quer acompanhar?</h2><p>Escolha o formato mais confortável para você.</p></div><button id="clear-transcript" class="button button-quiet" disabled><svg class="icon" aria-hidden="true"><use href="#icon-trash"/></svg>Limpar conversa</button></div>
+      <div class="format-options" role="group" aria-label="Formato da conversa"><button class="format-button active" data-format="images" aria-pressed="true"><span aria-hidden="true">😊</span><span>Imagens animadas</span></button><button class="format-button" data-format="text" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#icon-text"/></svg><span>Texto</span></button><button class="format-button" data-format="libras" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#icon-hand"/></svg><span>Libras</span><span class="small-tag">Em preparação</span></button></div>
+      <div id="image-output" class="image-output"><div class="output-empty" id="image-empty"><span aria-hidden="true">✨</span><p>As imagens de apoio vão aparecer aqui.</p></div><div class="image-matches" id="image-matches"></div><p class="support-note">Imagens destacam palavras reconhecidas. Leia a transcrição para entender a frase completa, inclusive negações.</p></div>
+      <div id="libras-output" class="libras-output" hidden><div id="libras-library-empty" class="libras-notice"><span class="libras-illustration" aria-hidden="true">🤟</span><div><h3>Libras merece uma tradução de verdade.</h3><p>Esta versão ainda não tem uma biblioteca de sinais validada. O avatar em Libras não está disponível.</p><p>Enquanto isso, acompanhe a conversa pelo texto abaixo.</p></div></div><div id="libras-videos"></div></div>
+      <div class="transcript-card" id="transcript-card"><div class="transcript-label"><span class="small-label">O QUE FOI DITO</span><span class="recording-badge" id="recording-badge" hidden><i></i>Ouvindo</span></div><p id="transcript-text" class="transcript-text empty-transcript">A fala vai aparecer aqui, em português.</p><span id="transcript-interim" class="transcript-interim"></span></div>
+      <p class="transcription-note">A transcrição pode conter erros. Confirme informações importantes com quem está falando.</p>
+    </section>
+    <footer class="footer"><span class="footer-mark" aria-hidden="true">✦</span><span>Comunicar é um direito. Cada jeito importa.</span><span class="footer-dot" aria-hidden="true">·</span><span>Sem anúncios</span></footer>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

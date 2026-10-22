@@ -1,0 +1,77 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'br.com.vozesinais.app'
+    compileSdk 36
+    buildToolsVersion '36.0.0'
+    buildFeatures {
+        buildConfig true
+    }
+
+    defaultConfig {
+        applicationId 'br.com.vozesinais.app'
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName '0.1.0'
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+        }
+    }
+    flavorDimensions += 'speech'
+    productFlavors {
+        device {
+            dimension 'speech'
+            applicationIdSuffix '.demo'
+            versionNameSuffix '-device-demo'
+        }
+        bundled {
+            dimension 'speech'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Configure a private upload key before publishing. Never use the debug key on Play.
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    androidResources {
+        noCompress += ['fst', 'mdl', 'int', 'carpa', 'bin']
+    }
+    lint {
+        abortOnError true
+        checkReleaseBuilds true
+    }
+}
+
+dependencies {
+    implementation 'com.alphacephei:vosk-android:0.3.75@aar'
+    implementation 'net.java.dev.jna:jna:5.18.1@aar'
+}
+
+tasks.register('verifyOfflineModel') {
+    doLast {
+        def model = file('src/bundled/assets/model-pt-br')
+        def legacy = new File(model, 'final.mdl').isFile()
+        def required = legacy ? ['uuid', 'final.mdl', 'mfcc.conf'] : ['uuid', 'am/final.mdl', 'conf/model.conf']
+        required.each {
+            if (!new File(model, it).isFile()) {
+                throw new GradleException("Modelo offline ausente: ${it}. Execute python3 scripts/prepare_model.py antes de gerar o aplicativo.")
+            }
+        }
+        def graph = legacy ? model : new File(model, 'graph')
+        if (!new File(graph, 'HCLG.fst').isFile() &&
+            !(new File(graph, 'HCLr.fst').isFile() && new File(graph, 'Gr.fst').isFile())) {
+            throw new GradleException('Grafo do modelo offline ausente. Execute python3 scripts/prepare_model.py.')
+        }
+    }
+}
+tasks.configureEach {
+    if (name.startsWith('preBundled') && name.endsWith('Build')) dependsOn 'verifyOfflineModel'
+}

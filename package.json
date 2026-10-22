@@ -1,0 +1,13 @@
+{
+  "name": "voz-e-sinais-checks",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Testes locais da interface offline Voz e Sinais",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 tests/app.test.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
+    "playwright": "1.56.1"
+  }
+}

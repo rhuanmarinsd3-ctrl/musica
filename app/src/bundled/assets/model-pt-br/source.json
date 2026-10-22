@@ -1,0 +1,7 @@
+{
+  "model": "vosk-model-small-pt-0.3",
+  "source": "https://alphacephei.com/vosk/models/vosk-model-small-pt-0.3.zip",
+  "sha256": "6e1ce909032e1afa7a88e68a3d628ecafff302bdf195befab308826c395e93b7",
+  "license": "Apache-2.0",
+  "note": "Hash fixado após obtenção da fonte oficial por HTTPS verificado; o fornecedor não publica checksum separado."
+}
