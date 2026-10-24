@@ -4,12 +4,18 @@
   const catalog = window.Catalog;
   const $ = function (id) { return document.getElementById(id); };
   const bridge = window.NativeBridge;
-  const storageKeys = { favorites: 'vozesinais.card-favorites.v1', phrases: 'vozesinais.saved-phrases.v1' };
+  const storageKeys = { favorites: 'vozesinais.card-favorites.v1', phrases: 'vozesinais.saved-phrases.v1', cards: 'vozesinais.custom-cards.v1' };
+  const customLimit = 200;
+  const emojiPalette = catalog.emojiPalette || ['💬', '😊', '😢', '😠', '😨', '😌', '🥰', '😟', '🤗', '😴', '🙋', '💧', '🍽️', '🏠', '🩺', '🎵', '📚', '⚽', '🌳', '🎨', '👍', '✋', '💛', '⭐'];
   const routes = { communicate: 'comunicar', write: 'escrever', listen: 'ouvir' };
   const native = !!bridge;
   let toastTimer;
   let browserVoice = null;
   let utterance = null;
+  let editingCardId = null;
+  let editorEmoji = '💬';
+  let editorReturnTarget = null;
+  let editorInitial = null;
 
   function readStored(key) {
     try {
@@ -17,6 +23,20 @@
       return Array.isArray(value) ? value : [];
     } catch (_) { return []; }
   }
+
+  function readCustomCards() {
+    const seen = new Set();
+    return readStored(storageKeys.cards).filter(function (card) {
+      if (!card || typeof card !== 'object' || typeof card.id !== 'string' || !/^custom-[a-z0-9-]{8,70}$/.test(card.id) || seen.has(card.id)) return false;
+      if (typeof card.label !== 'string' || !card.label.trim() || card.label.length > 50 || typeof card.phrase !== 'string' || !card.phrase.trim() || card.phrase.length > 500 || emojiPalette.indexOf(card.emoji) === -1) return false;
+      seen.add(card.id);
+      return true;
+    }).slice(0, customLimit).map(function (card) {
+      return { id: card.id, category: 'personal', emoji: card.emoji, label: card.label.trim(), phrase: card.phrase.trim(), keywords: [card.label.trim()], supportLabel: card.label.trim(), color: 'mint', custom: true };
+    });
+  }
+
+  const initialCustomCards = readCustomCards();
 
   const state = {
     tab: 'communicate',
@@ -27,12 +47,14 @@
     selectedCardId: '',
     listening: false,
     listenPending: false,
+    processing: false,
     speaking: false,
     transcript: '',
     interimTranscript: '',
     displayTranscript: '',
     ignoreTranscriptUntilNextStart: false,
-    favorites: Array.from(new Set(readStored(storageKeys.favorites).filter(function (id) { return catalog.cards.some(function (card) { return card.id === id; }); }))),
+    customCards: initialCustomCards,
+    favorites: Array.from(new Set(readStored(storageKeys.favorites).filter(function (id) { return catalog.cards.concat(initialCustomCards).some(function (card) { return card.id === id; }); }))),
     savedPhrases: Array.from(new Set(readStored(storageKeys.phrases).filter(function (phrase) { return typeof phrase === 'string' && phrase.trim().length > 0 && phrase.length <= 1000; }))).slice(0, 30),
     capabilities: {
       native: native,
@@ -129,7 +151,7 @@
   }
 
   function renderCards() {
-    const cards = catalog.searchCards(state.query, state.category, state.favorites);
+    const cards = catalog.searchCards(state.query, state.category, state.favorites, state.customCards);
     const container = $('card-grid');
     const fragment = document.createDocumentFragment();
     cards.forEach(function (card) {
@@ -156,12 +178,155 @@
       favorite.appendChild(icon('heart'));
       favorite.addEventListener('click', function () { toggleFavorite(card, favorite); });
       wrapper.append(action, favorite);
+      if (card.custom) {
+        wrapper.classList.add('personal-card');
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'card-edit';
+        edit.setAttribute('aria-label', 'Editar cartão: ' + card.label);
+        edit.append(icon('write'), textElement('span', '', 'Editar'));
+        edit.addEventListener('click', function () { openCardEditor(card, edit); });
+        wrapper.appendChild(edit);
+      }
       fragment.appendChild(wrapper);
     });
     replaceContents(container, fragment);
     $('results-summary').textContent = cards.length + (cards.length === 1 ? ' cartão para se expressar' : ' cartões para se expressar');
     $('cards-empty').hidden = cards.length !== 0;
-    $('cards-empty-message').textContent = state.category === 'favorites' && !state.query ? 'Toque no coração de um cartão para guardar seus favoritos.' : 'Tente outra palavra ou categoria.';
+    $('cards-empty-message').textContent = state.category === 'favorites' && !state.query ? 'Toque no coração de um cartão para guardar seus favoritos.' : state.category === 'personal' && !state.query ? 'Toque em “Criar cartão” para guardar suas próprias palavras.' : 'Tente outra palavra ou categoria.';
+  }
+
+  function showCardError(message, field) {
+    $('custom-card-error').textContent = message;
+    $('custom-card-error').hidden = !message;
+    ['custom-card-label', 'custom-card-phrase'].forEach(function (id) { $(id).removeAttribute('aria-invalid'); });
+    if (field) { field.setAttribute('aria-invalid', 'true'); field.focus(); }
+  }
+
+  function renderEmojiPalette() {
+    const fragment = document.createDocumentFragment();
+    emojiPalette.forEach(function (emoji) {
+      const choice = document.createElement('button');
+      choice.type = 'button';
+      choice.className = 'emoji-choice';
+      choice.textContent = emoji;
+      choice.setAttribute('aria-label', 'Imagem: ' + emoji);
+      choice.setAttribute('aria-pressed', String(emoji === editorEmoji));
+      choice.addEventListener('click', function () {
+        editorEmoji = emoji;
+        $('custom-card-emoji-preview').textContent = emoji;
+        $('custom-card-emojis').querySelectorAll('button').forEach(function (button) { button.setAttribute('aria-pressed', String(button.textContent === emoji)); });
+      });
+      fragment.appendChild(choice);
+    });
+    replaceContents($('custom-card-emojis'), fragment);
+    $('custom-card-emoji-preview').textContent = editorEmoji;
+  }
+
+  function editorHasChanges() {
+    return editorInitial && ($('custom-card-label').value !== editorInitial.label || $('custom-card-phrase').value !== editorInitial.phrase || editorEmoji !== editorInitial.emoji);
+  }
+
+  function openCardEditor(card, returnTarget) {
+    const requestedId = card ? card.id : null;
+    if (!$('custom-card-editor').hidden && requestedId !== editingCardId && editorHasChanges()) {
+      toast('Salve ou cancele o cartão aberto antes de editar outro.');
+      $('custom-card-label').focus();
+      return;
+    }
+    if (!card && state.customCards.length >= customLimit) {
+      toast('Você tem 200 cartões pessoais. Edite ou exclua um para criar outro.');
+      return;
+    }
+    if (!$('custom-card-editor').hidden && requestedId === editingCardId) {
+      $('custom-card-label').focus();
+      return;
+    }
+    editingCardId = requestedId;
+    editorReturnTarget = returnTarget || $('new-card');
+    editorEmoji = card ? card.emoji : '💬';
+    $('custom-card-label').value = card ? card.label : '';
+    $('custom-card-phrase').value = card ? card.phrase : '';
+    editorInitial = { label: $('custom-card-label').value, phrase: $('custom-card-phrase').value, emoji: editorEmoji };
+    $('custom-card-editor-title').textContent = card ? 'Editar meu cartão' : 'Criar cartão';
+    $('custom-card-count').textContent = state.customCards.length + ' / ' + customLimit + ' pessoais';
+    $('delete-custom-card').hidden = !card;
+    $('custom-card-delete-confirmation').hidden = true;
+    showCardError('');
+    renderEmojiPalette();
+    $('custom-card-editor').hidden = false;
+    $('custom-card-label').focus();
+  }
+
+  function closeCardEditor() {
+    $('custom-card-editor').hidden = true;
+    $('custom-card-delete-confirmation').hidden = true;
+    editingCardId = null;
+    editorInitial = null;
+    showCardError('');
+    const target = editorReturnTarget && document.documentElement.contains(editorReturnTarget) ? editorReturnTarget : $('new-card');
+    target.focus();
+    editorReturnTarget = null;
+  }
+
+  function saveCustomCard(event) {
+    event.preventDefault();
+    const label = $('custom-card-label').value.trim();
+    const phrase = $('custom-card-phrase').value.trim();
+    if (!label || label.length > 50) { showCardError('Escreva um nome de até 50 caracteres.', $('custom-card-label')); return; }
+    if (!phrase || phrase.length > 500) { showCardError('Escreva uma frase de até 500 caracteres.', $('custom-card-phrase')); return; }
+    if (emojiPalette.indexOf(editorEmoji) === -1) { showCardError('Escolha uma imagem da lista.'); return; }
+    const nameKey = catalog.normalize(label) || label.toLocaleLowerCase('pt-BR');
+    if (state.customCards.some(function (card) {
+      const previousKey = catalog.normalize(card.label) || card.label.toLocaleLowerCase('pt-BR');
+      return card.id !== editingCardId && previousKey === nameKey;
+    })) {
+      showCardError('Você já tem um cartão pessoal com esse nome. Escolha outro nome.', $('custom-card-label'));
+      return;
+    }
+    if (!editingCardId && state.customCards.length >= customLimit) { showCardError('O limite é de 200 cartões pessoais. Exclua um para continuar.'); return; }
+    let id = editingCardId;
+    if (!id) {
+      do { id = 'custom-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10); }
+      while (state.customCards.some(function (card) { return card.id === id; }));
+    }
+    const card = { id: id, category: 'personal', emoji: editorEmoji, label: label, phrase: phrase, keywords: [label], supportLabel: label, color: 'mint', custom: true };
+    const next = editingCardId ? state.customCards.map(function (previous) { return previous.id === id ? card : previous; }) : state.customCards.concat(card);
+    if (!persist(storageKeys.cards, next)) return;
+    const wasEditing = !!editingCardId;
+    state.customCards = next;
+    state.category = 'personal';
+    state.query = '';
+    $('card-search').value = '';
+    if (state.selectedCardId === id) { stopSpeaking(); state.selectedPhrase = phrase; $('selected-phrase').textContent = phrase; }
+    renderCategories();
+    renderCards();
+    renderImageOutput();
+    closeCardEditor();
+    toast(wasEditing ? 'Cartão atualizado neste aparelho.' : 'Cartão criado neste aparelho.');
+  }
+
+  function deleteCustomCard() {
+    const id = editingCardId;
+    if (!id || !state.customCards.some(function (card) { return card.id === id; })) return;
+    const next = state.customCards.filter(function (card) { return card.id !== id; });
+    if (!persist(storageKeys.cards, next)) return;
+    state.customCards = next;
+    const nextFavorites = state.favorites.filter(function (favoriteId) { return favoriteId !== id; });
+    const favoritesSaved = nextFavorites.length === state.favorites.length || persist(storageKeys.favorites, nextFavorites);
+    state.favorites = nextFavorites;
+    if (state.selectedCardId === id) {
+      stopSpeaking();
+      state.selectedCardId = '';
+      state.selectedPhrase = '';
+      $('selected-phrase').textContent = 'Escolha um cartão para começar.';
+      $('repeat-phrase').disabled = true;
+      $('phrase-bar').hidden = true;
+    }
+    renderCards();
+    renderImageOutput();
+    closeCardEditor();
+    toast(favoritesSaved ? 'Cartão pessoal excluído.' : 'Cartão excluído. Não foi possível atualizar os favoritos salvos.');
   }
 
   function updateCapabilities(payload) {
@@ -288,10 +453,10 @@
 
   function renderListening() {
     $('listen-toggle').setAttribute('aria-pressed', String(state.listening));
-    $('listen-toggle').disabled = state.listenPending;
-    $('listen-title').textContent = state.listening ? 'Estou ouvindo.' : 'Vamos ouvir?';
-    $('listen-status').textContent = state.listening ? 'Peça para a pessoa falar perto do celular. Toque no botão para terminar.' : 'Toque no microfone e aproxime o celular de quem está falando.';
-    $('listen-button-label').textContent = state.listenPending ? 'Abrindo o microfone…' : state.listening ? 'Parar de ouvir' : 'Começar a ouvir';
+    $('listen-toggle').disabled = state.listenPending || (state.processing && !state.listening);
+    $('listen-title').textContent = state.listening ? 'Estou ouvindo.' : state.processing ? 'Preparando o texto.' : 'Vamos ouvir?';
+    $('listen-status').textContent = state.listening ? 'Peça para a pessoa falar perto do celular. Toque no botão para terminar.' : state.processing ? 'O microfone parou. O aparelho está processando a fala. Aguarde o texto.' : 'Toque no microfone e aproxime o celular de quem está falando.';
+    $('listen-button-label').textContent = state.listenPending ? 'Abrindo o microfone…' : state.listening ? 'Parar de ouvir' : state.processing ? 'Processando fala no aparelho…' : 'Começar a ouvir';
     $('recording-badge').hidden = !state.listening;
     $('clear-transcript').disabled = state.listening || state.listenPending || !state.displayTranscript;
   }
@@ -306,6 +471,7 @@
 
   function toggleListening() {
     if (state.listening || state.listenPending) { stopListening(); return; }
+    if (state.processing) { toast('Aguarde a transcrição atual terminar para ouvir outra conversa.'); return; }
     if (!native || !state.capabilities.recognizerReady) {
       toast(state.capabilities.recognizerMessage || 'O reconhecimento de voz offline não está disponível neste aparelho.');
       return;
@@ -318,7 +484,7 @@
   }
 
   function renderImageOutput() {
-    const matches = catalog.matchCards(state.displayTranscript, 8);
+    const matches = catalog.matchCards(state.displayTranscript, 8, state.customCards);
     const container = $('image-matches');
     const fragment = document.createDocumentFragment();
     matches.forEach(function (card) {
@@ -432,6 +598,9 @@
       state.listening = !!payload.active;
       state.listenPending = false;
       renderListening();
+    } else if (type === 'processing') {
+      state.processing = !!payload.active;
+      renderListening();
     } else if (type === 'speaking') setSpeaking(payload.active);
     else if (type === 'error') {
       state.listenPending = false;
@@ -462,6 +631,21 @@
   });
   window.addEventListener('hashchange', function () { switchTab(tabFromHash(), false); });
   $('card-search').addEventListener('input', function (event) { state.query = event.target.value; renderCards(); });
+  $('new-card').addEventListener('click', function () { openCardEditor(null, $('new-card')); });
+  $('custom-card-form').addEventListener('submit', saveCustomCard);
+  $('cancel-custom-card').addEventListener('click', closeCardEditor);
+  $('custom-card-editor').addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') { event.preventDefault(); closeCardEditor(); }
+  });
+  $('delete-custom-card').addEventListener('click', function () {
+    $('custom-card-delete-confirmation').hidden = false;
+    $('confirm-delete-custom-card').focus();
+  });
+  $('confirm-delete-custom-card').addEventListener('click', deleteCustomCard);
+  $('cancel-delete-custom-card').addEventListener('click', function () {
+    $('custom-card-delete-confirmation').hidden = true;
+    $('delete-custom-card').focus();
+  });
   $('reset-search').addEventListener('click', function () {
     state.query = '';
     state.category = 'all';

@@ -39,7 +39,7 @@ after(async () => {
   await new Promise((done) => server ? server.close(done) : done());
 });
 
-async function openApp({ native = true, legacyDom = false, viewport = { width: 390, height: 844 } } = {}) {
+async function openApp({ native = true, legacyDom = false, storage = {}, viewport = { width: 390, height: 844 } } = {}) {
   const context = await browser.newContext({ viewport, serviceWorkers: 'block' });
   const page = await context.newPage();
   const errors = [];
@@ -48,8 +48,13 @@ async function openApp({ native = true, legacyDom = false, viewport = { width: 3
   page.on('request', (request) => {
     if (!request.url().startsWith(origin) && !request.url().startsWith('data:')) externalRequests.push(request.url());
   });
-  await page.addInitScript(({ native, legacyDom }) => {
+  await page.addInitScript(({ native, legacyDom, storage }) => {
     if (legacyDom) delete Element.prototype.replaceChildren;
+    // Seed only the first visit so a reload still exercises actual persistence.
+    if (Object.keys(storage).length && !sessionStorage.getItem('__qa_storage_seeded')) {
+      Object.entries(storage).forEach(([key, value]) => localStorage.setItem(key, JSON.stringify(value)));
+      sessionStorage.setItem('__qa_storage_seeded', 'true');
+    }
     window.__nativeCalls = [];
     window.__unsafeRecognitionAttempts = 0;
     class UnsafeRecognition {
@@ -75,7 +80,7 @@ async function openApp({ native = true, legacyDom = false, viewport = { width: 3
         window.App.onNativeEvent('listening', { active: false });
       }
     };
-  }, { native, legacyDom });
+  }, { native, legacyDom, storage });
   await page.goto(origin + '/app/src/main/assets/web/');
   await page.waitForFunction(() => window.App && document.querySelector('#card-grid')?.childElementCount > 0);
   return {
@@ -107,6 +112,219 @@ test('cartão de comida fala a frase completa e permite repeti-la', async () => 
     spoken = await page.evaluate(() => window.__nativeCalls.filter((call) => call.method === 'speak'));
     assert.equal(spoken.length, 2);
     assert.equal(spoken[1].text, 'Eu quero comida, por gentileza.');
+  } finally { await app.close(); }
+});
+
+test('catálogo oferece emoções diversas e mantém frases úteis de comunicação', async () => {
+  const app = await openApp();
+  try {
+    const { page } = app;
+    const cards = await page.evaluate(() => window.Catalog.cards.map(({ id, category, label, phrase, supportLabel }) => ({ id, category, label, phrase, supportLabel })));
+    assert.ok(cards.length >= 180, 'the bundled catalogue must contain at least 180 distinct cards');
+    assert.ok(cards.filter((card) => card.category === 'emotions').length >= 120, 'emotions must be expanded substantially');
+    assert.equal(new Set(cards.map((card) => card.id)).size, cards.length, 'card identities must be unique');
+    assert.equal(new Set(cards.map((card) => card.label)).size, cards.length, 'labels must identify distinct cards');
+    for (const card of cards) {
+      assert.equal(typeof card.phrase, 'string');
+      assert.ok(card.phrase.trim().length > 0, 'each card must have something meaningful to speak');
+      assert.equal(typeof card.supportLabel, 'string');
+      assert.ok(card.supportLabel.trim().length > 0, 'keyword illustrations need a readable neutral caption');
+    }
+    for (const id of ['food', 'water', 'happy', 'sad', 'fear', 'angry', 'bathroom', 'help']) {
+      assert.ok(cards.some((card) => card.id === id), 'core communication need preserved: ' + id);
+    }
+    assert.equal(await page.locator('#card-grid .communication-card').count(), cards.length);
+  } finally { await app.close(); }
+});
+
+async function fillPersonalCard(page, label, phrase) {
+  await page.locator('#custom-card-label').fill(label);
+  await page.locator('#custom-card-phrase').fill(phrase);
+  const image = page.locator('#custom-card-emojis button').first();
+  await image.click();
+  assert.ok((await page.locator('#custom-card-emoji-preview').innerText()).trim());
+}
+
+test('cartão pessoal pode ser criado, falado, favoritado, editado e excluído com persistência', async () => {
+  const app = await openApp();
+  try {
+    const { page } = app;
+    const label = 'Minha pausa';
+    const phrase = 'Eu preciso de uma pausa para respirar, por gentileza.';
+    await page.locator('#new-card').click();
+    assert.equal(await page.locator('#custom-card-editor').isVisible(), true);
+    await fillPersonalCard(page, label, phrase);
+    await page.locator('#save-custom-card').click();
+    assert.equal(await page.locator('#custom-card-editor').isVisible(), false);
+    await page.locator('#card-search').fill('minha pausa');
+    const card = page.locator('.communication-card').filter({ has: page.getByText(label, { exact: true }) });
+    assert.equal(await card.count(), 1);
+    const id = await card.getAttribute('data-card');
+    await card.getByRole('button', { name: 'Falar: ' + phrase, exact: true }).click();
+    assert.equal(await page.evaluate(() => window.__nativeCalls.filter((call) => call.method === 'speak').at(-1).text), phrase);
+    await card.getByRole('button', { name: 'Adicionar aos favoritos: ' + label, exact: true }).click();
+    await page.reload();
+    await page.waitForFunction(() => window.App);
+    await page.locator('#categories').getByRole('button', { name: 'Favoritos', exact: true }).click();
+    assert.equal(await page.getByText(label, { exact: true }).count(), 1);
+    await page.getByRole('button', { name: 'Falar: ' + phrase, exact: true }).click();
+    await emit(page, 'speaking', { active: true });
+    const stopCount = await page.evaluate(() => window.__nativeCalls.filter((call) => call.method === 'stopSpeaking').length);
+    await page.getByRole('button', { name: 'Editar cartão: ' + label, exact: true }).click();
+    const changedLabel = 'Meu tempo para respirar';
+    const changedPhrase = 'Preciso de um minuto para respirar com calma.';
+    await fillPersonalCard(page, changedLabel, changedPhrase);
+    await page.locator('#save-custom-card').click();
+    assert.ok(await page.evaluate(() => window.__nativeCalls.filter((call) => call.method === 'stopSpeaking').length) > stopCount, 'editing a selected spoken card must stop the old message');
+    assert.equal(await page.locator('#selected-phrase').innerText(), changedPhrase);
+    const changed = page.locator('.communication-card').filter({ has: page.getByText(changedLabel, { exact: true }) });
+    assert.equal(await changed.getAttribute('data-card'), id, 'editing must preserve the card identity and its favorite');
+    await page.reload();
+    await page.waitForFunction(() => window.App);
+    await page.locator('#categories').getByRole('button', { name: 'Favoritos', exact: true }).click();
+    await page.getByRole('button', { name: 'Falar: ' + changedPhrase, exact: true }).click();
+    assert.equal(await page.evaluate(() => window.__nativeCalls.filter((call) => call.method === 'speak').at(-1).text), changedPhrase);
+    await page.getByRole('button', { name: 'Editar cartão: ' + changedLabel, exact: true }).click();
+    await page.locator('#delete-custom-card').click();
+    assert.equal(await page.locator('#custom-card-delete-confirmation').isVisible(), true);
+    await page.locator('#cancel-delete-custom-card').click();
+    assert.equal(await page.locator('#custom-card-editor').isVisible(), true, 'canceling deletion preserves the card');
+    await page.locator('#delete-custom-card').click();
+    await page.locator('#confirm-delete-custom-card').click();
+    await page.reload();
+    await page.waitForFunction(() => window.App);
+    await page.locator('#categories').getByRole('button', { name: 'Favoritos', exact: true }).click();
+    assert.equal(await page.locator('#cards-empty').isVisible(), true);
+    assert.equal(await page.getByText(changedLabel, { exact: true }).count(), 0);
+    assert.equal(await page.evaluate((deleted) => JSON.parse(localStorage.getItem('vozesinais.card-favorites.v1') || '[]').includes(deleted), id), false);
+  } finally { await app.close(); }
+});
+
+test('editor trata texto pessoal literalmente e cancelar não cria um cartão', async () => {
+  const app = await openApp();
+  try {
+    const { page } = app;
+    const initialCount = await page.locator('#card-grid .communication-card').count();
+    await page.locator('#new-card').click();
+    await fillPersonalCard(page, 'Um cartão não salvo', 'Esta frase deve ser descartada.');
+    await page.locator('#cancel-custom-card').click();
+    assert.equal(await page.locator('#custom-card-editor').isVisible(), false);
+    assert.equal(await page.locator('#card-grid .communication-card').count(), initialCount);
+    await page.locator('#new-card').click();
+    const label = '<img src=x onerror=alert(1)>';
+    const phrase = '<svg onload="window.__injected=true">Minha mensagem.';
+    await fillPersonalCard(page, label, phrase);
+    await page.locator('#save-custom-card').click();
+    await page.locator('#card-search').fill('minha mensagem');
+    assert.equal(await page.getByText(label, { exact: true }).count(), 1);
+    assert.equal(await page.locator('#card-grid img').count(), 0);
+    assert.equal(await page.locator('#card-grid .card-label svg').count(), 0);
+    await page.getByRole('button', { name: 'Falar: ' + phrase, exact: true }).click();
+    assert.equal(await page.evaluate(() => window.__nativeCalls.filter((call) => call.method === 'speak').at(-1).text), phrase);
+    assert.equal(await page.evaluate(() => window.__injected === true), false);
+    await page.reload();
+    await page.waitForFunction(() => window.App);
+    await page.locator('#categories').getByRole('button', { name: 'Meus cartões', exact: true }).click();
+    assert.equal(await page.getByText(label, { exact: true }).count(), 1);
+    assert.equal(await page.locator('#card-grid img').count(), 0);
+  } finally { await app.close(); }
+});
+
+test('editor impede nomes e frases vazios ou acima dos limites', async () => {
+  const app = await openApp();
+  try {
+    const { page } = app;
+    await page.locator('#new-card').click();
+    assert.equal(await page.locator('#custom-card-label').getAttribute('maxlength'), '50');
+    assert.equal(await page.locator('#custom-card-phrase').getAttribute('maxlength'), '500');
+    for (const invalid of [
+      { label: '   ', phrase: 'Uma frase válida.' },
+      { label: 'Nome válido', phrase: '   ' },
+      { label: 'N'.repeat(51), phrase: 'Uma frase válida.' },
+      { label: 'Nome válido', phrase: 'F'.repeat(501) }
+    ]) {
+      await page.evaluate((value) => {
+        for (const [id, text] of [['custom-card-label', value.label], ['custom-card-phrase', value.phrase]]) {
+          const input = document.getElementById(id);
+          input.value = text;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }, invalid);
+      if (await page.locator('#save-custom-card').isEnabled()) await page.locator('#save-custom-card').click();
+      assert.equal(await page.locator('#custom-card-editor').isVisible(), true);
+      assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('vozesinais.custom-cards.v1') || '[]').length), 0);
+    }
+    await fillPersonalCard(page, 'Nome válido', 'Uma mensagem válida.');
+    await page.locator('#save-custom-card').click();
+    assert.equal(await page.locator('#custom-card-editor').isVisible(), false);
+  } finally { await app.close(); }
+});
+
+test('dados pessoais inválidos não derrubam catálogo nem injetam imagens', async () => {
+  const app = await openApp({ storage: { 'vozesinais.custom-cards.v1': [null, {},
+    { id: '__proto__', label: 'Nome', phrase: 'Texto', emoji: '<img src=x onerror=alert(1)>' },
+    { id: 'broken', label: 'L'.repeat(51), phrase: 'Texto', emoji: '😊' },
+    { id: 'broken-empty', label: '   ', phrase: 'Texto', emoji: '😊' }
+  ] } });
+  try {
+    const { page } = app;
+    assert.ok(await page.locator('#card-grid .communication-card').count() >= 180);
+    assert.equal(await page.locator('#card-grid img').count(), 0);
+    await page.locator('#new-card').click();
+    await fillPersonalCard(page, 'Meu cartão após recuperar', 'Continuo podendo me comunicar.');
+    await page.locator('#save-custom-card').click();
+    await page.getByText('Meu cartão após recuperar', { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.__injected === true), false);
+  } finally { await app.close(); }
+});
+
+test('nomes pessoais só com emoji não geram imagens para qualquer fala ou conversa vazia', async () => {
+  const app = await openApp();
+  try {
+    const { page } = app;
+    for (const [label, phrase] of [['😊', 'Quero sorrir com você.'], ['💛', 'Eu gosto de carinho.']]) {
+      await page.locator('#new-card').click();
+      await fillPersonalCard(page, label, phrase);
+      await page.locator('#save-custom-card').click();
+      assert.equal(await page.locator('#custom-card-editor').isVisible(), false);
+    }
+    assert.equal(await page.locator('#card-grid .communication-card').count(), 2);
+    await page.locator('#tab-listen').click();
+    await emit(page, 'transcript', { text: '', final: true });
+    assert.equal(await page.locator('#image-matches').locator('>*').count(), 0);
+    await emit(page, 'transcript', { text: 'xyzqv', final: true });
+    assert.equal(await page.locator('#image-matches').locator('>*').count(), 0);
+    await page.locator('#clear-transcript').click();
+    assert.equal(await page.locator('#image-matches').locator('>*').count(), 0);
+  } finally { await app.close(); }
+});
+
+test('limite de cartões pessoais preserva os existentes e permite editar sem criar extras', async () => {
+  const seeded = Array.from({ length: 200 }, (_, index) => ({
+    id: 'custom-seed-' + String(index).padStart(8, '0'), category: 'personal', emoji: '💬',
+    label: 'Cartão pessoal ' + index, phrase: 'Mensagem pessoal de número ' + index + '.',
+    supportLabel: 'Cartão pessoal ' + index, color: 'mint', keywords: ['pessoal'], custom: true
+  }));
+  const app = await openApp({ storage: { 'vozesinais.custom-cards.v1': seeded } });
+  try {
+    const { page } = app;
+    await page.locator('#categories').getByRole('button', { name: 'Meus cartões', exact: true }).click();
+    assert.equal(await page.locator('#card-grid .communication-card').count(), 200);
+    if (await page.locator('#new-card').isEnabled()) {
+      await page.locator('#new-card').click();
+      if (await page.locator('#custom-card-editor').isVisible()) {
+        await fillPersonalCard(page, 'Um cartão além do limite', 'Não deve substituir cartões existentes.');
+        if (await page.locator('#save-custom-card').isEnabled()) await page.locator('#save-custom-card').click();
+        assert.equal(await page.locator('#custom-card-editor').isVisible(), true);
+        await page.locator('#cancel-custom-card').click();
+      }
+    }
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('vozesinais.custom-cards.v1')).length), 200);
+    await page.getByRole('button', { name: 'Editar cartão: Cartão pessoal 0', exact: true }).click();
+    await fillPersonalCard(page, 'Cartão pessoal revisado', 'Minha mensagem atualizada.');
+    await page.locator('#save-custom-card').click();
+    assert.equal(await page.getByText('Cartão pessoal revisado', { exact: true }).count(), 1);
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('vozesinais.custom-cards.v1')).length), 200);
   } finally { await app.close(); }
 });
 
@@ -165,7 +383,7 @@ test('interface funciona sem replaceChildren em WebView antiga', async () => {
   try {
     const { page } = app;
     assert.equal(await page.evaluate(() => 'replaceChildren' in Element.prototype), false);
-    assert.equal(await page.locator('#card-grid .communication-card').count(), 48);
+    assert.ok(await page.locator('#card-grid .communication-card').count() >= 180, 'broad catalogue must render in a legacy WebView');
     await page.locator('#card-search').fill('quero agua');
     assert.equal(await page.locator('#card-grid .communication-card').count(), 1);
     await page.getByRole('button', { name: 'Adicionar aos favoritos: Quero água', exact: true }).click();
@@ -241,6 +459,27 @@ test('leitura de texto longo pode ser interrompida na mesma tela', async () => {
   } finally { await app.close(); }
 });
 
+test('processamento local tem indicador e não inicia outra escuta até concluir', async () => {
+  const app = await openApp();
+  try {
+    const { page } = app;
+    await page.locator('#tab-listen').click();
+    await page.locator('#listen-toggle').click();
+    await emit(page, 'processing', { active: true });
+    assert.equal(await page.evaluate(() => window.App.getState().processing), true);
+    assert.equal(await page.locator('#listen-toggle').isEnabled(), true, 'an ongoing capture must still be stoppable');
+    await page.locator('#listen-toggle').click();
+    assert.equal(await page.evaluate(() => window.App.getState().listening), false);
+    assert.match(await page.locator('#listen-status').innerText(), /transcrev|process|interpret|convert/i);
+    assert.equal(await page.locator('#listen-toggle').isDisabled(), true, 'a second decoder session must not race the pending one');
+    await emit(page, 'transcript', { text: 'Eu quero água, por gentileza.', final: true });
+    await emit(page, 'processing', { active: false });
+    assert.equal(await page.locator('#listen-toggle').isEnabled(), true);
+    assert.equal(await page.locator('#transcript-text').innerText(), 'Eu quero água, por gentileza.');
+    assert.equal(await page.evaluate(() => window.App.getState().processing), false);
+  } finally { await app.close(); }
+});
+
 test('transcrição cumulativa não duplica frases e mantém negações nos três modos', async () => {
   const app = await openApp();
   try {
@@ -298,6 +537,7 @@ test('resultado final atrasado não restaura conversa apagada e nova escuta func
     await page.locator('#tab-listen').click();
     await page.locator('#listen-toggle').click();
     await emit(page, 'transcript', { text: 'Conversa que será apagada.', final: true });
+    await emit(page, 'processing', { active: true });
     await page.locator('#listen-toggle').click();
     assert.equal(await page.evaluate(() => window.App.getState().listening), false);
     assert.equal(await page.locator('#clear-transcript').isEnabled(), true);
@@ -308,11 +548,41 @@ test('resultado final atrasado não restaura conversa apagada e nova escuta func
     assert.equal(await page.evaluate(() => window.App.getState().displayTranscript), '');
     assert.equal(await page.locator('#transcript-text').innerText(), 'A fala vai aparecer aqui, em português.');
     assert.equal(await page.locator('#image-matches').locator('>*').count(), 0);
+    assert.equal(await page.locator('#listen-toggle').isDisabled(), true);
+    await emit(page, 'processing', { active: false });
     await page.locator('#listen-toggle').click();
     await emit(page, 'transcript', { text: 'Uma nova conversa.', final: true });
     assert.equal(await page.evaluate(() => window.App.getState().listening), true);
     assert.equal(await page.locator('#transcript-text').innerText(), 'Uma nova conversa.');
     await page.locator('#listen-toggle').click();
+  } finally { await app.close(); }
+});
+
+test('microfone indisponível e falha ao abrir mantêm estado utilizável sem reconhecimento online', async () => {
+  const app = await openApp();
+  try {
+    const { page } = app;
+    await page.locator('#tab-listen').click();
+    await emit(page, 'capabilities', { recognizerReady: false, recognizerMessage: 'Permita o microfone nas configurações do aparelho.' });
+    await emit(page, 'capabilities', '{invalid-json');
+    await emit(page, 'capabilities', { recognizerReady: 'true' });
+    await page.locator('#listen-toggle').click();
+    assert.equal(await page.evaluate(() => window.__nativeCalls.filter((call) => call.method === 'startListening').length), 0);
+    assert.match(await page.locator('#recognizer-notice').innerText(), /microfone/i);
+    await emit(page, 'capabilities', { recognizerReady: true, recognizerMessage: 'Reconhecimento offline disponível.' });
+    await page.evaluate(() => {
+      window.NativeBridge.startListening = () => window.__nativeCalls.push({ method: 'startListening' });
+    });
+    await page.locator('#listen-toggle').click();
+    assert.equal(await page.evaluate(() => window.App.getState().listenPending), true);
+    assert.equal(await page.locator('#listen-toggle').isDisabled(), true);
+    await emit(page, 'error', { message: 'O microfone está sendo usado por outro aplicativo.' });
+    assert.equal(await page.evaluate(() => window.App.getState().listenPending), false);
+    assert.equal(await page.evaluate(() => window.App.getState().listening), false);
+    assert.equal(await page.locator('#listen-toggle').isEnabled(), true);
+    assert.equal(await page.evaluate(() => window.__unsafeRecognitionAttempts), 0);
+    assert.equal(await page.evaluate(() => window.App.getState().displayTranscript), '');
+    assert.match(await page.locator('#toast').innerText(), /microfone/i);
   } finally { await app.close(); }
 });
 
@@ -353,6 +623,9 @@ test('layout funciona em celular e desktop sem recursos externos', async () => {
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, `${tab} at ${viewport.width}px must not overflow`);
       }
       await page.locator('#tab-communicate').click();
+      await page.locator('#new-card').click();
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, `personal card editor at ${viewport.width}px must not overflow`);
+      await page.locator('#cancel-custom-card').click();
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: join(project, 'test-results', `app-${viewport.width}.png`), fullPage: true });
       await page.screenshot({ path: join(project, 'test-results', `app-viewport-${viewport.width}.png`) });
@@ -409,6 +682,10 @@ test('interface não apresenta violações automáticas de WCAG AA', async () =>
       const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
       issues.push(...violations.map((v) => ({ tab, rule: v.id, impact: v.impact, nodes: v.nodes.map((node) => ({ target: node.target, summary: node.failureSummary })) })));
     }
+    await page.locator('#tab-communicate').click();
+    await page.locator('#new-card').click();
+    const editor = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+    issues.push(...editor.violations.map((v) => ({ tab: 'personal-card-editor', rule: v.id, impact: v.impact, nodes: v.nodes.map((node) => ({ target: node.target, summary: node.failureSummary })) })));
     assert.deepEqual(issues, []);
   } finally { await app.close(); }
 });

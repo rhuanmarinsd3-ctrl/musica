@@ -1,41 +1,39 @@
-VOZ E SINAIS — PACOTE DE DESENVOLVIMENTO E TESTE
+VOZ E SINAIS 0.2 - ANDROID E WINDOWS
 
-NO SEU PC WINDOWS
-1. Salve o ZIP e clique nele com o botão direito.
-2. Escolha "Extrair Tudo" e abra a pasta extraída.
-3. Leia docs/COMO_USAR_PACOTE.md para os próximos passos.
+PARA USAR NO SEU COMPUTADOR
+1. Baixe o ZIP completo e escolha "Extrair Tudo".
+2. Abra ABRIR-NO-WINDOWS.cmd na pasta extraida.
+3. Aguarde a primeira extracao e o programa abrira em janela propria.
+Nao precisa de site, servidor, Python ou Java instalado.
+Requer Windows 10/11 de64 bits e cerca de1,5GB livres para extrair.
+Para falar, precisa de uma voz de portugues offline instalada no Windows.
 
-ONDE ESTÁ CADA COISA
-- Código do Android: raiz do projeto, com settings.gradle e pasta app/.
-- Modelo de português: app/src/bundled/assets/model-pt-br/.
-- APK para testar no Android: site/downloads/voz-e-sinais-demo.apk.
-- Site e versão web: pasta site/; início index.html, interface app/index.html.
-- AAB SEM ASSINATURA de produção:
-  entrega/google-play/voz-e-sinais-sem-assinatura.aab.
-- Instruções de publicação e privacidade: pasta docs/.
+NO CELULAR ANDROID
+Transfira e instale site/downloads/voz-e-sinais-demo.apk para testes.
+Requer Android8+, processador arm64/x86_64 e voz pt-BR local para falar.
+O modelo de reconhecimento acompanha o aplicativo.
 
-PARA COLOCAR O SITE NA SUA HOSPEDAGEM
-Envie somente o conteúdo da pasta site/ para a área pública da hospedagem.
-Mantenha a pasta downloads/ e use HTTPS.
-O site apresenta o projeto, oferece o APK e tem "Abrir versão web".
-A versão web usa cartões e escrita com voz local compatível no navegador.
-Não oferece transcrição offline pelo microfone nem Libras. Preserve app/.
-O site não precisa de banco ou backend.
+PARA ASSINAR O BUNDLE DA GOOGLE PLAY
+Abra entrega/google-play/ASSINAR-PARA-PLAY.cmd no Windows.
+Leia docs/ASSINATURA.md e guarde sua chave e senha com seguranca.
+O arquivo AAB incluido esta sem assinatura de producao.
+O bundle assinado ainda depende de contaPlayConsole, ficha, politica
+publica de privacidade e testes/revisao para ser publicado.
 
-PARA A GOOGLE PLAY
-Não basta enviar este ZIP. O AAB incluído não tem assinatura de produção.
-Após concluir e testar o app, abra o projeto no Android Studio e use
-Build > Generate Signed Bundle / APK > Android App Bundle para gerar
-um AAB com sua própria chave. Guarde a chave com segurança.
-A publicação também exige conta Play Console, ficha do aplicativo,
-política de privacidade com responsável/contato e os testes exigidos.
-Siga docs/PUBLICACAO.md antes de enviar qualquer versão.
+O QUE FUNCIONA E O QUE AINDA FALTA
+216cartoes, favoritos, cartoes pessoais, texto para falar e transcricao
+local com imagens associadas a algumas palavras. Sem anuncios.
+Reconhecimento pode errar, inclusive negacoes; confira a transcricao.
+Nao contem todas as emocoes existentes nem imagens animadas de cada uma.
+Avatar/traducao completa para Libras ainda nao foram concluidos.
+O Android abriu no emulador; falta validar audio em celulares reais.
+O programaWindows foi compilado emLinux e precisa de teste realWindows.
+Veja docs/VALIDACAO.md para os resultados e limites exatos.
 
-O QUE AINDA FALTA
-O avatar e a tradução de Libras não foram implementados.
-A transcrição apresentou erros e precisa melhorar e ser testada com pessoas.
-Faltam testes de áudio e acessibilidade em celulares reais.
-Para falar mensagens, o Android precisa de uma voz pt-BR offline instalada.
-O APK é uma demonstração com assinatura de desenvolvimento, sem anúncios.
-O aplicativo não foi publicado na Google Play e o site não foi hospedado.
-O arquivo APK é para Android; ele não é um programa executável do Windows.
+SITE OPCIONAL
+A pasta site/ pode ser hospedada emHTTPS, mas isso nao e necessario
+para abrir o programaWindows. Ela inclui APK, versao web limitada e
+rascunho de politica de privacidade que precisa de contato do responsavel.
+
+Todos os arquivos da entrega constam em entrega/ARQUIVOS-SHA256.txt.
+As musicas originais nao sao necessarias e nao fazem parte do aplicativo.

@@ -48,12 +48,23 @@
   </header>
   <main id="main-content" tabindex="-1">
     <section id="panel-communicate" class="panel" role="tabpanel" aria-labelledby="tab-communicate">
-      <div class="hero">
-        <div class="hero-copy"><span class="eyebrow">UM TOQUE, MUITAS POSSIBILIDADES</span><h1>Sua voz.<br><span>Do seu jeito.</span></h1><p>Escolha uma imagem e deixe o celular falar por você.</p><div class="hero-note"><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>Sem anúncios. No seu tempo.</div></div>
-        <div class="hero-art" aria-hidden="true"><span class="art-spark spark-one">✦</span><span class="art-spark spark-two">✧</span><div class="art-card art-card-back"><span>💬</span></div><div class="art-card art-card-front"><span>😊</span><span>Quero conversar!</span><div class="art-sound"><i></i><i></i><i></i><i></i><i></i></div></div><div class="art-label"><span>💚</span> Cada voz importa.</div></div>
+      <div class="hero communication-intro">
+        <div class="hero-copy"><h1>Sua voz, <span>do seu jeito.</span></h1><p>Um catálogo amplo de sentimentos e necessidades. Crie também seus próprios cartões.</p></div>
+        <button type="button" class="button button-primary" id="new-card"><span aria-hidden="true">＋</span> Criar cartão</button>
       </div>
       <div class="section-top"><div><h2>O que você quer dizer?</h2><p>Toque em um cartão para falar.</p></div><label class="search-field"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><span class="sr-only">Buscar um cartão</span><input id="card-search" type="search" placeholder="Buscar um cartão" autocomplete="off" maxlength="80"></label></div>
       <div id="categories" class="categories" role="group" aria-label="Filtrar cartões por categoria"></div>
+      <section id="custom-card-editor" class="custom-card-editor" aria-labelledby="custom-card-editor-title" hidden>
+        <div class="custom-editor-heading"><div><h3 id="custom-card-editor-title">Criar cartão</h3><p>Escolha uma imagem, um nome curto e a frase que o aparelho vai falar.</p></div><span class="count-badge" id="custom-card-count"></span></div>
+        <form id="custom-card-form" novalidate>
+          <div class="custom-editor-fields"><div><label class="field-label" for="custom-card-label">Nome do cartão</label><input id="custom-card-label" type="text" maxlength="50" autocomplete="off" required placeholder="Ex.: Quero brincar" aria-describedby="custom-name-help"><p id="custom-name-help" class="field-help">Até 50 caracteres.</p></div><div><label class="field-label" for="custom-card-phrase">Frase para falar</label><textarea id="custom-card-phrase" maxlength="500" rows="3" required placeholder="Ex.: Eu quero brincar, por gentileza." aria-describedby="custom-phrase-help"></textarea><p id="custom-phrase-help" class="field-help">Até 500 caracteres. Escreva exatamente o que você quer dizer.</p></div></div>
+          <fieldset class="emoji-fieldset"><legend>Escolha a imagem do cartão</legend><div class="emoji-selection"><span id="custom-card-emoji-preview" aria-hidden="true">💬</span><div id="custom-card-emojis" class="emoji-palette"></div></div></fieldset>
+          <p id="custom-card-error" class="custom-card-error" role="alert" hidden></p>
+          <div class="custom-editor-actions"><button type="submit" id="save-custom-card" class="button button-primary">Salvar cartão</button><button type="button" id="cancel-custom-card" class="button button-secondary">Cancelar</button><button type="button" id="delete-custom-card" class="button button-delete" hidden>Excluir cartão</button></div>
+          <div id="custom-card-delete-confirmation" class="delete-confirmation" hidden><p>Excluir este cartão pessoal? Ele também sairá dos favoritos.</p><div><button type="button" id="confirm-delete-custom-card" class="button button-delete">Confirmar exclusão</button><button type="button" id="cancel-delete-custom-card" class="button button-secondary">Manter cartão</button></div></div>
+          <p class="field-help custom-storage-note">Seus cartões pessoais ficam somente neste aparelho. As emoções podem se misturar ou mudar; você pode criar um cartão sempre que precisar.</p>
+        </form>
+      </section>
       <div class="results-summary" id="results-summary" aria-live="polite"></div>
       <div class="card-grid" id="card-grid"></div>
       <div class="empty-state" id="cards-empty" hidden><span aria-hidden="true">🔎</span><h3>Nenhum cartão por aqui</h3><p id="cards-empty-message">Tente outra palavra ou categoria.</p><button class="button button-secondary" id="reset-search">Ver todos os cartões</button></div>

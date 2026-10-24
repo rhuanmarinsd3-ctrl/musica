@@ -1,0 +1,42 @@
+{
+  "source": "Human read speech: Google FLEURS, pt_br development split, CC-BY-4.0",
+  "preparation": "Decoded official WAV, PCM16 mono 16kHz; no trimming, padding, speed or reference-text edits",
+  "limitation": "Three preselected read-speech utterances only; source dev metadata labels every available utterance MALE. Not a representative human-voice or microphone validation. Third reference contains two negations: inspect preservation of both, not only keyword presence.",
+  "maxWordErrorRate": 0.34,
+  "cases": [
+    {
+      "id": "fleurs-01",
+      "file": "human-01.wav",
+      "expected": "você pode ver as pirâmides no escuro e também no silêncio antes de o show começar",
+      "required": [
+        "piramides",
+        "escuro",
+        "silencio"
+      ],
+      "reference_original": "Você pode ver as pirâmides no escuro e também no silêncio antes de o show começar."
+    },
+    {
+      "id": "fleurs-02",
+      "file": "human-02.wav",
+      "expected": "neste ônibus de transporte dinâmico todos estão de alguma forma conectados e apoiando um sistema de transporte baseado em carros particulares",
+      "required": [
+        "transporte",
+        "carros"
+      ],
+      "reference_original": "Neste ônibus de transporte dinâmico, todos estão de alguma forma conectados e apoiando um sistema de transporte baseado em carros particulares."
+    },
+    {
+      "id": "fleurs-03",
+      "file": "human-03.wav",
+      "expected": "aquilo não pareceu fazer sentido para mim certamente não foi justo",
+      "required": [
+        "nao",
+        "justo"
+      ],
+      "reference_original": "Aquilo não pareceu fazer sentido para mim; certamente não foi justo.",
+      "requiredWordCounts": {
+        "nao": 2
+      }
+    }
+  ]
+}

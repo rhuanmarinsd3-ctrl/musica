@@ -10,7 +10,7 @@ O projeto ainda não está publicado. Um APK de demonstração, quando gerado, s
 - Revisar a precisão da fala transcrita em diferentes sotaques e ambientes. Não anunciar detecção de emoções pela voz nem tradução completa para Libras.
 - Revisar a segurança do WebView e da ponte nativa, dependências e permissões. A versão Android deve continuar sem `INTERNET` e sem publicidade ou análise de uso.
 - Revisar a [política de privacidade](PRIVACIDADE.md), preencher responsável e contato, confirmar política de backup e hospedar o texto final em HTTPS.
-- Conferir licenças e avisos das dependências, do modelo Vosk exato distribuído, de arte, fontes, sons e futuros vídeos de Libras. A presença de músicas no repositório não autoriza sua inclusão no aplicativo.
+- Conferir licenças e avisos das dependências, do modelo Whisper Tiny exato distribuído, de arte, fontes, sons e futuros vídeos de Libras. A presença de músicas no repositório não autoriza sua inclusão no aplicativo.
 
 ## Libras
 
@@ -36,7 +36,7 @@ Referências oficiais: [Play Console](https://play.google.com/console/about/), [
 
 O diretório `site/` pode ser servido por uma hospedagem estática HTTPS. Não é preciso um servidor de aplicação. Só publicar arquivos revisados; não servir a raiz inteira do repositório nem arquivos de assinatura.
 
-A demonstração principal usa a variante `bundled`, com o modelo Vosk de português incluído no APK. O modelo oficial foi obtido e sua integridade foi verificada durante a preparação; o reconhecimento não depende de download durante o uso nem do reconhecedor do sistema. A variante opcional `device` continua disponível para desenvolvimento e só transcreve com reconhecimento explicitamente local compatível no Android 12 ou posterior. Os testes em celulares reais ainda não foram executados, e a leitura em voz alta continua dependendo de uma voz pt-BR offline instalada no Android.
+A demonstração principal usa a variante `bundled`, com o modelo Whisper Tiny de português incluído no APK. O modelo oficial foi obtido e sua integridade foi verificada durante a preparação; o reconhecimento não depende de download durante o uso nem do reconhecedor do sistema. A variante opcional `device` continua disponível para desenvolvimento e só transcreve com reconhecimento explicitamente local compatível no Android 12 ou posterior. Os testes em celulares reais ainda não foram executados, e a leitura em voz alta continua dependendo de uma voz pt-BR offline instalada no Android.
 
 Colocar o APK de `assembleBundledDebug` em `site/downloads/voz-e-sinais-demo.apk` apenas quando esse APK tiver sido gerado e conferido. O botão da página verifica a presença do arquivo antes de habilitar o download. Para o lançamento, usar o APK de produção, indicar a versão, o tamanho, a assinatura/hash e as notas de atualização. Explicar que o Android pode pedir autorização para instalar aplicativos dessa fonte.
 

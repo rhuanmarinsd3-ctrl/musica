@@ -1,0 +1,44 @@
+
+> voz-e-sinais-checks@0.1.0 test
+> node --test --test-concurrency=1 tests/app.test.mjs
+
+✔ cartão de comida fala a frase completa e permite repeti-la (1216.38462ms)
+✔ catálogo oferece emoções diversas e mantém frases úteis de comunicação (470.590616ms)
+✔ cartão pessoal pode ser criado, falado, favoritado, editado e excluído com persistência (2597.891554ms)
+✔ editor trata texto pessoal literalmente e cancelar não cria um cartão (1225.971049ms)
+✔ editor impede nomes e frases vazios ou acima dos limites (827.101066ms)
+✔ dados pessoais inválidos não derrubam catálogo nem injetam imagens (768.81475ms)
+✔ nomes pessoais só com emoji não geram imagens para qualquer fala ou conversa vazia (850.897262ms)
+✔ limite de cartões pessoais preserva os existentes e permite editar sem criar extras (969.816334ms)
+✔ busca sem acentos, categorias e estado vazio funcionam (528.926852ms)
+✔ abas podem ser trocadas pelo teclado sem mouse (436.392966ms)
+✔ cartões favoritos persistem sem disparar fala ao tocar no coração (681.614138ms)
+✔ interface funciona sem replaceChildren em WebView antiga (762.471294ms)
+✔ texto livre fala literalmente, salva localmente e pode ser removido (662.388739ms)
+✔ navegador não tenta reconhecimento online e explica o microfone Android (457.990197ms)
+✔ leitura de texto longo pode ser interrompida na mesma tela (509.809126ms)
+✔ processamento local tem indicador e não inicia outra escuta até concluir (545.925236ms)
+✔ transcrição cumulativa não duplica frases e mantém negações nos três modos (993.767302ms)
+✔ fala transcrita é texto seguro, sem interpretar HTML (383.488669ms)
+✔ resultado final atrasado não restaura conversa apagada e nova escuta funciona (648.618476ms)
+✔ microfone indisponível e falha ao abrir mantêm estado utilizável sem reconhecimento online (534.078424ms)
+✔ microfone exige ação e para ao sair da tela de escuta (735.017433ms)
+✔ sem voz offline disponível a interface não solicita fala nativa (600.129734ms)
+✔ layout funciona em celular e desktop sem recursos externos (4348.890144ms)
+✔ site informa publicação pendente e não oferece download inexistente (560.766976ms)
+✔ download só é habilitado para um APK disponível, sem confundir erro HTML (817.008416ms)
+✔ interface não apresenta violações automáticas de WCAG AA (8691.921735ms)
+✔ site não apresenta violações automáticas de WCAG AA (1501.725595ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 34059.202708
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

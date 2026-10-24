@@ -13,9 +13,9 @@ ROOT = Path(__file__).resolve().parents[1]
 ROOT_FILES = [
     '.gitignore', 'README.md', 'THIRD_PARTY_NOTICES.md', 'build.gradle',
     'settings.gradle', 'gradle.properties', 'gradlew', 'gradlew.bat',
-    'package.json', 'package-lock.json', 'app/build.gradle',
+    'package.json', 'package-lock.json', 'app/build.gradle', 'ABRIR-NO-WINDOWS.cmd',
 ]
-DIRECTORIES = ['app/src', 'gradle', 'docs', 'scripts', 'site', 'tests', 'entrega']
+DIRECTORIES = ['app/src', 'gradle', 'docs', 'scripts', 'site', 'tests', 'entrega', 'desktop']
 BLOCKED_NAMES = {'local.properties', 'release-signing.properties', '.env'}
 
 
@@ -30,9 +30,11 @@ def files():
         for path in (ROOT / directory).rglob('*'):
             if path.is_symlink():
                 raise RuntimeError('Link simbólico não esperado no pacote: ' + str(path))
-            if not path.is_file() or '__pycache__' in path.parts:
+            if not path.is_file() or any(part in path.parts for part in ['__pycache__', 'node_modules', 'model-pt-br', '.pytest_cache']):
                 continue
-            if path.name.startswith('.env') or path.name in BLOCKED_NAMES or path.suffix.lower() in {'.jks', '.keystore', '.pem', '.key'}:
+            if path == ROOT / 'scripts/prepare_model.py':
+                continue
+            if path.name.startswith('.env') or path.name in BLOCKED_NAMES or path.suffix.lower() in {'.jks', '.keystore', '.pem', '.key', '.p12', '.pfx'}:
                 raise RuntimeError('Arquivo privado ou local não deve entrar no pacote: ' + str(path.relative_to(ROOT)))
             selected.add(path)
     return sorted(selected)
@@ -49,10 +51,12 @@ def verify_inputs():
         for path in (ROOT / 'app/src/main/assets/web').rglob('*'):
             if path.is_file() and archive.read('assets/web/' + path.relative_to(ROOT / 'app/src/main/assets/web').as_posix()) != path.read_bytes():
                 raise RuntimeError('APK desatualizado: ' + str(path.relative_to(ROOT)))
-        model = ROOT / 'app/src/bundled/assets/model-pt-br'
+        model = ROOT / 'app/src/bundled/assets/whisper'
         for path in model.rglob('*'):
-            if path.is_file() and archive.read('assets/model-pt-br/' + path.relative_to(model).as_posix()) != path.read_bytes():
+            if path.is_file() and archive.read('assets/whisper/' + path.relative_to(model).as_posix()) != path.read_bytes():
                 raise RuntimeError('Modelo do APK difere do fonte: ' + str(path.relative_to(ROOT)))
+        if not list(model.glob('*.bin')):
+            raise RuntimeError('Modelo Whisper ausente')
     destination = ROOT / 'entrega/google-play/voz-e-sinais-sem-assinatura.aab'
     destination.parent.mkdir(parents=True, exist_ok=True)
     if not destination.exists() or sha256(destination) != sha256(aab):
@@ -107,7 +111,7 @@ def main():
     output.mkdir(exist_ok=True)
     description = {'files': [path.relative_to(ROOT).as_posix() for path in sorted(selected)],
                    'largest_file_bytes': max(path.stat().st_size for path in selected),
-                   'note': 'APK de teste e AAB sem assinatura de produção; Libras e validação de precisão pendentes.'}
+                   'note': 'Android de teste, Windows portátil e AAB para assinatura local. Confira docs/VALIDACAO.md para limites verificados.'}
     (output / 'delivery-files.json').write_text(json.dumps(description, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     if not args.skip_zips:
         zip_files(output / 'voz-e-sinais-completo.zip', [(path, path.relative_to(ROOT).as_posix()) for path in selected], 'Voz-e-Sinais/')

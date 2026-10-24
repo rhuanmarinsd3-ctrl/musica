@@ -1,32 +1,27 @@
-# Componentes de terceiros
+# Componentes redistribuídos
 
-## Vosk
+## Whisper.cpp e modelo Whisper
 
-Vosk Android `com.alphacephei:vosk-android:0.3.75`.
+Whisper.cpp 1.9.5, commit `d1be6fde11ac6e0407606b4e42fe72d34add8037`, licença MIT. Fonte e licença: https://github.com/ggml-org/whisper.cpp. A cópia usada na compilação Android está em `app/src/main/cpp/third_party/whisper/`, com `LICENSE` e `SOURCE.json`. O programa Windows inclui o CLI compilado estaticamente e a licença em `resources/app/licenses/`.
 
-- Projeto: https://github.com/alphacep/vosk-api
-- Licença: Apache License 2.0.
-- O AAR contém bibliotecas nativas e os avisos distribuídos pelo fornecedor. Preserve os avisos ao redistribuir.
+Modelo Whisper Tiny multilíngue, licença MIT de OpenAI: https://github.com/openai/whisper e https://huggingface.co/ggerganov/whisper.cpp. O arquivo distribuído é `ggml-tiny.bin`, SHA256 `be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21`. Os scripts preservam o modelo e verificam o hash oficial. A licença MIT do Whisper está incluída junto ao modelo.
 
-## Modelo de português
+## Electron
 
-`vosk-model-small-pt-0.3`, quando obtido por `scripts/prepare_model.py` e incluído na variante `bundled`.
+Electron 45.0.0, licença MIT: https://github.com/electron/electron. A distribuição Windows inclui `LICENSE` e `LICENSES.chromium.html`, além dos avisos das dependências. Preserve todos ao redistribuir o programa. Electron/Chromium incorporam componentes sob outras licenças, identificados nesses arquivos.
 
-- Fonte oficial: https://alphacephei.com/vosk/models
-- Licença declarada pelo fornecedor: Apache License 2.0.
-- O hash do arquivo obtido é registrado nos metadados locais `source.json`. Nenhum modelo de terceiros foi substituído silenciosamente.
+## Java mínimo de assinatura
 
-## JNA
+Eclipse Temurin 21.0.12.1+1, OpenJDK, GPLv2 com Classpath Exception e componentes sob as licenças documentadas em `entrega/google-play/assinatura-java/legal/`. Não faz parte do aplicativo Android; é uma ferramenta local para o responsável assinar o AAB. Fonte correspondente e checksum oficial estão em [docs/ASSINATURA.md](docs/ASSINATURA.md). Preserve os avisos, `release` e `SOURCE.json` do runtime.
 
-`net.java.dev.jna:jna:5.18.1`.
+## Arte e pesquisa de Libras
 
-- Projeto: https://github.com/java-native-access/jna
-- Licenças oferecidas pelo projeto: Apache License 2.0 ou LGPL 2.1. Esta distribuição usa a opção Apache License 2.0.
+As imagens dos cartões são caracteres emoji renderizados pela fonte local do sistema. O projeto não redistribui fontes de emoji. Os MP3s originais não entram no aplicativo.
 
-## Ferramentas de desenvolvimento
+A pesquisa do VLibras e suas referências estão em `docs/PESQUISA_LIBRAS.md`. Os arquivos experimentais externos usados na pesquisa não acompanham o produto e não representam um tradutor implementado.
 
-Gradle, Android SDK, Android Gradle Plugin, Playwright e axe-core têm suas próprias licenças. Não fazem parte do código de interface embarcado no aplicativo; as ferramentas de teste não são empacotadas no APK.
+## Desenvolvimento e histórico
 
-As imagens do catálogo usam caracteres emoji da fonte do sistema do usuário, sem redistribuir arquivos de fonte. Nenhum dos arquivos de música preexistentes faz parte do aplicativo.
+Gradle, Android SDK/NDK/CMake, Android Gradle Plugin, Playwright, axe-core e LLVM-MinGW têm suas próprias licenças. Preserve as licenças dos componentes nativos do toolchain redistribuídos. As ferramentas de teste e os caches não entram no APK.
 
-Antes de publicar uma distribuição de produção, confira os arquivos LICENSE/NOTICE de todos os artefatos efetivamente empacotados e inclua os avisos exigidos. O conteúdo de Libras ainda não está disponível e precisará ter autoria, autorização de uso e validação documentadas.
+A versão anterior experimentou Vosk e JNA. Eles não são dependências de execução desta versão. O aviso histórico JNA-LICENSE.txt pode permanecer nos assets sem indicar uso do código JNA. Não há modelo Vosk no pacote novo.

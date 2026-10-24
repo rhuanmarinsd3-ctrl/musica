@@ -92,9 +92,12 @@ def main():
     (TOOLS / '.android').mkdir(exist_ok=True)
     if not ((SDK / 'platforms/android-36/android.jar').is_file() and
             (SDK / 'build-tools/36.0.0/aapt2').is_file() and
-            (SDK / 'platform-tools/adb').is_file()):
+            (SDK / 'platform-tools/adb').is_file() and
+            (SDK / 'ndk/28.2.13676358/ndk-build').is_file() and
+            (SDK / 'cmake/3.22.1/bin/cmake').is_file()):
         result = subprocess.run([str(manager), '--sdk_root=' + str(SDK),
-            'platforms;android-36', 'build-tools;36.0.0', 'platform-tools'],
+            'platforms;android-36', 'build-tools;36.0.0', 'platform-tools',
+            'ndk;28.2.13676358', 'cmake;3.22.1'],
             input='y\n' * 100, capture_output=True, text=True, env=environment)
         if result.returncode:
             raise RuntimeError('SDK não instalado: ' + result.stderr[-3000:])
@@ -102,7 +105,7 @@ def main():
     if not local.exists():
         local.write_text('sdk.dir=' + str(SDK) + '\n', encoding='utf-8')
     print('Ferramentas preparadas. Ative com: . scripts/cloud-env.sh')
-    print('O modelo Vosk é preparado separadamente por scripts/prepare_model.py.')
+    print('Prepare o Whisper com scripts/prepare_whisper.py e scripts/prepare_whisper_model.py.')
 
 
 if __name__ == '__main__':

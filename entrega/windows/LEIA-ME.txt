@@ -1,0 +1,11 @@
+VOZ E SINAIS - WINDOWS 10/11, 64 BITS
+
+Extraia TODO o ZIP baixado antes de abrir. Depois clique em INICIAR.cmd.
+Na primeira vez, o programa confere e extrai as partes automaticamente.
+Nao precisa de site, servidor, Python, Java ou internet para abrir o app.
+Reserve 1,5 GB livres para a primeira extracao. Mantenha todos os arquivos juntos.
+O reconhecimento de voz esta incluido. Confira a transcricao, que pode errar.
+A leitura usa uma voz de portugues offline instalada no Windows.
+Sem essa voz, instale uma nas configuracoes de fala do Windows.
+O executavel Windows nao possui certificado de assinatura de codigo.
+Foi compilado neste ambiente Linux; a execucao real no Windows precisa de validacao.

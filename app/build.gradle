@@ -6,6 +6,7 @@ android {
     namespace 'br.com.vozesinais.app'
     compileSdk 36
     buildToolsVersion '36.0.0'
+    ndkVersion '28.2.13676358'
     buildFeatures {
         buildConfig true
     }
@@ -14,10 +15,17 @@ android {
         applicationId 'br.com.vozesinais.app'
         minSdk 26
         targetSdk 36
-        versionCode 1
-        versionName '0.1.0'
+        versionCode 2
+        versionName '0.2.0'
+        testInstrumentationRunner 'br.com.vozesinais.app.WhisperSmokeInstrumentation'
         ndk {
-            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+            abiFilters 'arm64-v8a', 'x86_64'
+        }
+        externalNativeBuild {
+            cmake {
+                cppFlags '-std=c++17', '-O3'
+                arguments '-DANDROID_STL=c++_shared', '-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON'
+            }
         }
     }
     flavorDimensions += 'speech'
@@ -43,6 +51,14 @@ android {
     }
     androidResources {
         noCompress += ['fst', 'mdl', 'int', 'carpa', 'bin']
+        // Keep the previous model available in the checkout without shipping two engines.
+        ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~:model-pt-br'
+    }
+    externalNativeBuild {
+        cmake {
+            path file('src/main/cpp/CMakeLists.txt')
+            version '3.22.1'
+        }
     }
     lint {
         abortOnError true
@@ -50,28 +66,27 @@ android {
     }
 }
 
-dependencies {
-    implementation 'com.alphacephei:vosk-android:0.3.75@aar'
-    implementation 'net.java.dev.jna:jna:5.18.1@aar'
-}
-
 tasks.register('verifyOfflineModel') {
     doLast {
-        def model = file('src/bundled/assets/model-pt-br')
-        def legacy = new File(model, 'final.mdl').isFile()
-        def required = legacy ? ['uuid', 'final.mdl', 'mfcc.conf'] : ['uuid', 'am/final.mdl', 'conf/model.conf']
-        required.each {
-            if (!new File(model, it).isFile()) {
-                throw new GradleException("Modelo offline ausente: ${it}. Execute python3 scripts/prepare_model.py antes de gerar o aplicativo.")
-            }
+        def model = file('src/bundled/assets/whisper/ggml-tiny.bin')
+        def checksum = file('src/bundled/assets/whisper/ggml-tiny.bin.sha256')
+        if (!model.isFile() || !checksum.isFile()) {
+            throw new GradleException('Modelo Whisper offline ausente. Prepare ggml-tiny.bin e seu SHA256 antes de gerar a variante bundled.')
         }
-        def graph = legacy ? model : new File(model, 'graph')
-        if (!new File(graph, 'HCLG.fst').isFile() &&
-            !(new File(graph, 'HCLr.fst').isFile() && new File(graph, 'Gr.fst').isFile())) {
-            throw new GradleException('Grafo do modelo offline ausente. Execute python3 scripts/prepare_model.py.')
+        def expected = checksum.text.trim()
+        if (!(expected ==~ /[a-fA-F0-9]{64}/)) throw new GradleException('SHA256 do modelo Whisper deve conter somente 64 caracteres hexadecimais.')
+        def digest = java.security.MessageDigest.getInstance('SHA-256')
+        model.withInputStream { input ->
+            byte[] buffer = new byte[65536]
+            int count
+            while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count)
         }
+        def actual = digest.digest().encodeHex().toString()
+        if (!expected.equalsIgnoreCase(actual)) throw new GradleException('Modelo Whisper rejeitado: SHA256 não corresponde ao arquivo preparado.')
     }
 }
-tasks.configureEach {
-    if (name.startsWith('preBundled') && name.endsWith('Build')) dependsOn 'verifyOfflineModel'
+tasks.configureEach { task ->
+    if (task.name == 'mergeBundledDebugAssets' || task.name == 'mergeBundledReleaseAssets') {
+        task.dependsOn tasks.named('verifyOfflineModel')
+    }
 }

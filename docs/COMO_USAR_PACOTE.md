@@ -1,34 +1,31 @@
-# Como usar o pacote do Voz e Sinais
+# Baixar e usar
 
-Este pacote é uma versão de desenvolvimento. **Ainda não está pronto para lançamento na Google Play:** Libras não foi implementada, a transcrição apresentou erros e faltam testes em celulares reais.
+Baixe o ZIP completo do link de entrega e escolha **Extrair Tudo** no Windows. Não abra o aplicativo dentro da visualização do ZIP.
 
-## Abrir no computador
+## Computador Windows
 
-1. Salve o ZIP no seu PC. No Windows, clique nele com o botão direito e escolha **Extrair Tudo**.
-2. Abra a pasta extraída. Ela contém o código Android, o modelo de português, o site e os arquivos de teste.
-3. Para editar o aplicativo, instale o Android Studio e use **File > Open** na pasta que contém `settings.gradle`.
-4. Para usar os cartões e a escrita no navegador do PC, abra o site hospedado e escolha **Abrir versão web**.
+Abra **ABRIR-NO-WINDOWS.cmd**, na pasta extraída. Ele confere as partes do pacote, extrai o programa e abre o Voz e Sinais. A primeira abertura demora mais e precisa de cerca de 1,5 GB livres. Nas próximas vezes use o mesmo arquivo. Requer Windows 10/11 de 64 bits. Mantenha todos os arquivos juntos.
 
-| Arquivo ou pasta | Para que serve |
-| --- | --- |
-| `site/downloads/voz-e-sinais-demo.apk` | Instalar a demonstração em um celular Android. O APK não é um programa para Windows. |
-| `entrega/google-play/voz-e-sinais-sem-assinatura.aab` | Bundle de desenvolvimento, **sem assinatura de produção**; não está pronto para envio à loja. |
-| `site/` | Site de apresentação, privacidade, download do APK e acesso à versão web. |
-| `site/app/index.html` | Interface web com cartões e escrita; fala apenas se houver voz local compatível no navegador. |
-| `app/src/bundled/assets/model-pt-br/` | Modelo de reconhecimento local de português incluído no aplicativo. |
+O programa abre em janela própria e inclui o modelo de reconhecimento. Não exige site, servidor ou ferramentas de programação. Para falar, selecione e instale uma voz de português offline nas configurações de fala do Windows, se ainda não houver uma. Permita o microfone somente ao usar “Ouvir”.
 
-A leitura em voz alta exige uma voz **pt-BR offline instalada no Android**. O modelo de transcrição já acompanha a variante principal, mas pode reconhecer palavras incorretamente.
+Nos cartões, toque para falar, use a busca ou crie cartões próprios. Em “Escrever”, digite e mande falar. Em “Ouvir”, inicie, converse e pare; a transcrição aparece por trechos. Confira as palavras reconhecidas. O modo de imagens associa algumas palavras a cartões; não detecta sentimentos. Libras completa ainda não está disponível.
 
-## Colocar o site na sua hospedagem
+A execução real em Windows não foi validada neste ambiente Linux. Consulte [VALIDACAO.md](VALIDACAO.md) antes de distribuir a outras pessoas.
 
-Envie **somente o conteúdo da pasta `site/`** para a área pública da sua hospedagem HTTPS, mantendo a pasta `downloads/` e seus arquivos. O início do site é `index.html`.
+## Celular Android
 
-O site apresenta o projeto, oferece o APK e abre a versão web com cartões e escrita. Mantenha também a pasta `app/` dentro de `site/`. **A versão web não oferece transcrição offline pelo microfone nem Libras.** A fala dos cartões e do texto exige uma voz local compatível no navegador. Não precisa de servidor de aplicação, conta ou banco de dados. Não publique a raiz inteira do projeto, arquivos de assinatura ou senhas.
+Transfira `site/downloads/voz-e-sinais-demo.apk` para o celular e instale para testar. O APK exige Android 8+ e processador arm64 ou x86_64. A voz pt-BR deve estar disponível offline no sistema. O modelo de reconhecimento acompanha o APK. Esse APK usa assinatura de desenvolvimento e não é o arquivo de publicação na Play.
 
-## Preparar para a Google Play
+## Google Play
 
-Não envie o ZIP à loja. Primeiro conclua os recursos pendentes, melhore a precisão e teste o app em celulares reais, inclusive sem internet. Depois, no Android Studio, use **Build > Generate Signed Bundle / APK > Android App Bundle** para gerar um AAB com sua própria chave de assinatura; proteja a chave e suas senhas.
+Abra `entrega/google-play/ASSINAR-PARA-PLAY.cmd` no Windows. Siga [ASSINATURA.md](ASSINATURA.md), guarde sua chave e assine o AAB incluído. Depois confira [PUBLICACAO.md](PUBLICACAO.md): a publicação depende de sua conta, ficha, política de privacidade e dos testes exigidos. O ZIP não pode ser enviado à Play como aplicativo.
 
-Você também precisará de uma conta no Play Console, ficha do aplicativo, política de privacidade com responsável e contato, declarações exigidas e testes da loja. O AAB deste pacote não substitui essas etapas.
+## Hospedar no site, se desejar
 
-Consulte [as instruções de publicação](PUBLICACAO.md), [a política de privacidade](PRIVACIDADE.md) e [os resultados da validação](VALIDACAO.md). Nenhum site ou aplicativo foi publicado automaticamente.
+Envie somente o conteúdo de `site/` para uma hospedagem HTTPS. Preserve `app/` e `downloads/`. Essa hospedagem é opcional e não é necessária para usar o aplicativo Windows. A página web oferece cartões e leitura de texto com uma voz local compatível; não inclui o motor de reconhecimento.
+
+## Arquivos e integridade
+
+O código está nas pastas `app/` e `desktop/`. O APK fica em `site/downloads/`, e o AAB em `entrega/google-play/`. A distribuição Windows está em `entrega/windows/`; suas partes são recompostas automaticamente. Não é necessário juntá-las manualmente.
+
+`entrega/ARQUIVOS-SHA256.txt` contém os hashes dos arquivos. `entrega/windows/pacote.json` identifica e verifica o programa Windows antes da extração. Nenhuma chave privada acompanha a entrega.

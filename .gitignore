@@ -8,6 +8,8 @@ site/downloads/*.aab
 site/downloads/*.sha256
 *.jks
 *.keystore
+*.p12
+*.pfx
 .DS_Store
 app/src/main/assets/model-pt-br/
 app/src/bundled/assets/model-pt-br/

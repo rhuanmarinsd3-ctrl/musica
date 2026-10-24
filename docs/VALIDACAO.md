@@ -1,50 +1,41 @@
-# Validação da primeira versão
+# Validação da entrega 0.2
 
-Data: 22 de outubro de 2026. Nome confirmado pelo usuário: **Voz e Sinais**, para todas as idades.
+Preparação em 23 de outubro de 2026. Nome confirmado: Voz e Sinais, para todas as idades. Esta entrega é para testes e não comprova conclusão de todos os requisitos solicitados.
 
-## Compilação Android
+## Android
 
-`assembleBundledDebug`, `lintBundledDebug` e `bundleBundledRelease` foram executados com sucesso. O app tem mínimo Android 8/API 26 e destino API 36. O APK de demonstração usa assinatura de desenvolvimento; o AAB não tem assinatura de produção. Nenhum deles foi publicado.
+`assembleBundledDebug`, `assembleBundledDebugAndroidTest`, `lintBundledDebug` e `bundleBundledRelease` concluíram. Android mínimo26/destino36, bibliotecas arm64-v8a e x86_64 com alinhamento16KB. APK com assinatura de desenvolvimento; AAB sem assinatura de produção. `apksigner verify` e `zipalign -c -P16` passaram na compilação preparada.
 
-O APK foi conferido com `apksigner verify` e `zipalign -c -P 16`. As bibliotecas nativas arm64 e x86_64 também têm segmentos ELF alinhados a pelo menos 16 KB. O manifesto empacotado declara somente a permissão de microfone, sem `INTERNET`. Os MP3s originais não estão no APK. Os assets da interface e os 16 arquivos do modelo incluídos no APK foram comparados aos arquivos preparados.
+O APK novo abriu de fato no emulador Google APIs26, usando WebView Chrome69: foram observados216cartões, ponte nativa, modelo WhisperTiny extraído de77.691.713bytes e capacidades recognizerReady/ttsReady verdadeiras. Essa é uma verificação de abertura e inicialização, não um teste de microfone físico, fala audível ou precisão no celular. A primeira imagem AOSP tinha WebView incorreta; essa limitação do emulador foi corrigida com a imagem Google APIs.
 
-O download do APK pelo servidor estático local foi exercitado, e o SHA256 do conteúdo baixado correspondeu ao arquivo gerado. Os resultados em `test-results/` e os pacotes em `app/build/outputs/` e `site/downloads/` são artefatos locais gerados, ignorados pelo Git.
+A transcrição JNI foi exercitada por instrumentação em desenvolvimento, mas não há resultado final aprovado para as frases e o cancelamento no emulador nesta entrega. Não se anuncia esse teste como concluído. A revisão de ciclo de vida e os checks de segmentação não substituem essa execução nem aparelhos reais.
 
-A tentativa de executar a primeira imagem de emulador API 26 encontrou um pré-requisito ausente na própria imagem: o framework procurava o provider `com.google.android.webview`, mas havia apenas `com.android.webview`. A abertura terminou em `MissingWebViewPackageException`, antes de carregar a interface ou o modelo. Uma imagem Google APIs foi preparada como correção, mas o teste de abertura do aplicativo nela não foi concluído. Portanto não há alegação de execução Android validada, nem de áudio real validado; compilação e testes de navegador são evidências separadas.
+## Interface
 
-## Interface e site
+A suíte ampliada teve27testes aprovados, sem falhas ou ignorados, incluindo cartões, favoritos, cartões pessoais persistentes, edição, exclusão, texto, transcrição cumulativa, negações, limpeza de resultados atrasados, compatibilidade sem replaceChildren, proteção de HTML e ausência de reconhecimento em nuvem.
 
-**18 testes automáticos passaram, sem falhas ou testes ignorados.** Eles cobrem cartões, voz via ponte Android simulada, categorias, busca, favoritos persistentes, texto livre, frases salvas, parada da fala, transcrição cumulativa, negações, formatos de exibição, limpeza de resultados atrasados, ausência de reconhecimento de nuvem no navegador, proteção contra HTML injetado e ausência de recursos externos.
+As auditorias automáticas WCAGAA cobrem abas e editor de cartões. Elas não substituem avaliação com pessoas usuárias, TalkBack e fontes ampliadas.
 
-Também verificam layouts de celular e computador e auditoria automática WCAG AA nas três abas do app e nas páginas do site. Uma auditoria automática sem violações não substitui a revisão de acessibilidade com pessoas usuárias, TalkBack e fontes ampliadas.
+## Precisão de reconhecimento
 
-O helper de renderização foi adaptado para WebViews antigas, sem depender de `Element.replaceChildren`. A regressão de compatibilidade deve continuar na suíte.
+O modelo incluído é WhisperTiny multilíngue. Em seis frases sintéticas pt-BR pré-definidas, com limiar WER<=0,34 e palavras obrigatórias, somente3/6 passaram e1/6ficou exata. Exemplos reais: “eu quero comida por gentileza” virou “Eu quero comida por gentileira.”; a frase de água ficou “Eu can't wag web.”; “eu não estou triste” ficou “E o galetal triste.”, perdendo a negação.
 
-## Modelo de português e precisão
+Esses resultados são falhas relevantes e não foram escondidos nem usados para anunciar boa precisão. São áudios de síntese e não medem toda a fala humana. O modeloBase também foi pesquisado, mas não foi escolhido nem embutido sem validação. O perfil CLI desktop e o perfil JNI Android diferem; não se presume precisão idêntica.
 
-O modelo `vosk-model-small-pt-0.3` foi obtido da fonte oficial por HTTPS com TLS verificado. Seu SHA256, fixado no script de preparação, é:
+Antes de usar para comunicação importante, confirme a transcrição com a pessoa. Faltam testes representativos com fala humana, sotaques, ruído e dispositivos reais. O app preserva a transcrição inteira e não classifica sentimentos pela voz.
 
-```text
-6e1ce909032e1afa7a88e68a3d628ecafff302bdf195befab308826c395e93b7
-```
+## Computador
 
-A estrutura original é o layout legado suportado pelo Vosk. O script não altera os arquivos do modelo para inventar uma nova estrutura. A preparação foi repetida com sucesso sem sobrescrever o modelo existente.
+O aplicativo Electron real abriu em Linux em modo headless:216cartões, contexto isolado, ponte de recursos e reconhecedor pronto foram observados. O teste completo de microfone simulado ainda não tem resultado aprovado nesta entrega.
 
-Uma verificação funcional no host abriu o modelo com Vosk Python 0.3.45 e decodificou áudio PCM 16-bit mono a 16 kHz, gerado localmente por eSpeak-NG em pt-BR:
+O executável Whisper Windows foi compilado estaticamente e seu formato PE64/importações foram conferidos, sem exigir VC++Redistributable separado. O pacote contém Electron, interface, engine e modelo. **Não foi executado em Windows neste ambiente Linux.** Não se afirma que SAPI, microfone, extração pelo CMD ou SmartScreen tenham sido validados em Windows.
 
-| Frase de referência | Resultado real |
-| --- | --- |
-| eu quero comida por gentileza | obrigada por gentileza |
-| eu quero água | água |
+Os ZIPs são conferidos por integridade e os arquivos têm SHA256. O assistente de abertura recompõe e verifica o pacote local antes de extrair, sem downloads.
 
-**Nenhuma das duas transcrições ficou exata.** Carga e decodificação funcionaram, mas o teste não sustenta alegação de boa precisão. Trata-se de fala artificial e de uma versão do decoder no host diferente do AAR Android 0.3.75; não mede a precisão com fala humana no celular. O problema precisa ser avaliado com pessoas, sotaques e ambientes representativos antes do lançamento. O app mostra aviso para conferir o texto e não interpreta emoções pela voz.
+## Assinatura e recursos pendentes
 
-## O que ainda não foi validado para produção
+O runtime mínimo de assinatura Windows foi preparado a partir de Temurin oficial com hash fixado. Os módulos e cabeçalhos PE foram verificados; a lógica de assinatura foi ensaiada com runtimeLinux equivalente e chave descartável. Nenhuma chave de publicação acompanha a entrega. Veja ASSINATURA.md.
 
-- Microfone e voz pt-BR offline em celulares reais, inclusive modo avião, primeira instalação, permissão recusada, retorno das configurações e interrupções por outros apps.
-- Precisão suficiente da transcrição para o uso pretendido.
-- Compreensão dos pictogramas e usabilidade com pessoas de diferentes idades e necessidades.
-- Avatar/tradução de Libras: **não implementados**, dependem de conteúdo e validação linguística; veja [LIBRAS.md](LIBRAS.md).
-- Assinatura de produção, responsável/contato da política de privacidade, conta e revisão do Google Play e hospedagem pública do site.
+Não há avatar funcional nem tradução completa para Libras. A prova de download/carregamento de um player oficial não comprova um sinal visível ou uma tradução correta. Não há ilustrações animadas para todas as emoções nem um catálogo universal completo. O usuário pode criar cartões pessoais.
 
-A configuração reutilizável do ambiente foi salva em rascunho (`install_script`, `start_skill` e o domínio do fornecedor do modelo). Isso não publica o aplicativo nem confirma publicação de um snapshot do ambiente.
+Ainda são necessários voz pt-BR offline instalada, validação em aparelhos reais, precisão adequada, acessibilidade com pessoas usuárias, conclusão de Libras e requisitos da contaPlayConsole. O aplicativo não foi publicado nem aprovado no GooglePlay.

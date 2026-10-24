@@ -1,0 +1,106 @@
+{
+  "engine": "/workspace/.toolchains/whisper-host-build/bin/whisper-cli",
+  "engine_sha256": "dcfddbd63ec75012e57f3154b70430c905141d48571b179da033332b96aa2d8d",
+  "model": "/workspace/musica/app/src/bundled/assets/whisper/ggml-tiny.bin",
+  "model_sha256": "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+  "source": "eSpeak-NG 1.0.2 WASM, pt-br, artificial speech",
+  "preparation": "PCM 16-bit mono 16 kHz; 300 ms leading and 700 ms trailing silence",
+  "limitation": "Synthetic speech only; this is not validation of human voices or of microphone capture.",
+  "max_word_error_rate": 0.34,
+  "cases": [
+    {
+      "id": "food",
+      "duration_seconds": 3.46,
+      "expected": "eu quero comida por gentileza",
+      "actual": "Eu quero comida por gentileira.",
+      "exact_match": false,
+      "word_error_rate": 0.2,
+      "required_words": [
+        "comida"
+      ],
+      "required_words_preserved": true,
+      "command_exit": 0,
+      "passed": true,
+      "error": ""
+    },
+    {
+      "id": "water",
+      "duration_seconds": 2.349,
+      "expected": "eu quero água",
+      "actual": "Eu can't wag web.",
+      "exact_match": false,
+      "word_error_rate": 1.333,
+      "required_words": [
+        "agua"
+      ],
+      "required_words_preserved": false,
+      "command_exit": 0,
+      "passed": false,
+      "error": ""
+    },
+    {
+      "id": "negation",
+      "duration_seconds": 2.715,
+      "expected": "eu não estou triste",
+      "actual": "E o galetal triste.",
+      "exact_match": false,
+      "word_error_rate": 0.75,
+      "required_words": [
+        "nao",
+        "triste"
+      ],
+      "required_words_preserved": false,
+      "command_exit": 0,
+      "passed": false,
+      "error": ""
+    },
+    {
+      "id": "fear",
+      "duration_seconds": 2.605,
+      "expected": "eu estou com medo",
+      "actual": "E estou com medo.",
+      "exact_match": false,
+      "word_error_rate": 0.25,
+      "required_words": [
+        "medo"
+      ],
+      "required_words_preserved": true,
+      "command_exit": 0,
+      "passed": true,
+      "error": ""
+    },
+    {
+      "id": "help",
+      "duration_seconds": 3.285,
+      "expected": "eu preciso de ajuda por favor",
+      "actual": "Eu preciso de ajuda por favor.",
+      "exact_match": true,
+      "word_error_rate": 0.0,
+      "required_words": [
+        "ajuda"
+      ],
+      "required_words_preserved": true,
+      "command_exit": 0,
+      "passed": true,
+      "error": ""
+    },
+    {
+      "id": "slowly",
+      "duration_seconds": 3.333,
+      "expected": "você pode falar mais devagar",
+      "actual": "Você pode falar mais de macar.",
+      "exact_match": false,
+      "word_error_rate": 0.4,
+      "required_words": [
+        "devagar"
+      ],
+      "required_words_preserved": false,
+      "command_exit": 0,
+      "passed": false,
+      "error": ""
+    }
+  ],
+  "exact_matches": 1,
+  "passed_cases": 3,
+  "total_cases": 6
+}

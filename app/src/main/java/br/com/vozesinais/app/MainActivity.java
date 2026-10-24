@@ -35,8 +35,6 @@ import android.widget.FrameLayout;
 
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.vosk.Model;
-import org.vosk.Recognizer;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -53,28 +51,31 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** Android shell: all content and recognition are local; microphone audio is never saved. */
 public final class MainActivity extends Activity {
     private static final String ORIGIN = "https://appassets.androidplatform.net";
     private static final String START_URL = ORIGIN + "/assets/web/index.html";
-    private static final String MODEL_ASSET = "model-pt-br";
+    private static final String MODEL_ASSET = "whisper/ggml-tiny.bin";
     private static final int MICROPHONE_PERMISSION = 104;
     private static final int SAMPLE_RATE = 16000;
     private static final int MAX_TEXT_LENGTH = 8000;
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService audioWorker = Executors.newSingleThreadExecutor();
+    private final ExecutorService decodeWorker = Executors.newSingleThreadExecutor();
     private final AtomicBoolean captureRequested = new AtomicBoolean(false);
     private final AtomicBoolean captureBusy = new AtomicBoolean(false);
     private WebView web;
     private TextToSpeech tts;
     private Voice offlineVoice;
-    private volatile Model model;
+    private volatile OfflineWhisper model;
+    private volatile SpeechSession speechSession;
+    private long speechSessionSequence;
     private volatile AudioRecord recorder;
     private volatile boolean destroyed;
     private volatile boolean ttsReady;
@@ -300,17 +301,16 @@ public final class MainActivity extends Activity {
     }
 
     private void initializeModel() {
-        audioWorker.execute(() -> {
+        decodeWorker.execute(() -> {
             try {
-                File modelDirectory = unpackModel();
-                Model loaded = new Model(modelDirectory.getAbsolutePath());
+                OfflineWhisper loaded = new OfflineWhisper(unpackWhisperModel());
                 if (destroyed) {
                     loaded.close();
                     return;
                 }
                 model = loaded;
                 recognizerReady = true;
-                recognizerMessage = "Transcrição offline pronta. Toque no microfone para começar.";
+                recognizerMessage = "Transcrição offline em português pronta. As frases aparecem após pequenas pausas.";
             } catch (IOException | RuntimeException | LinkageError exception) {
                 bundledModelUnavailable = true;
                 recognizerReady = false;
@@ -395,44 +395,50 @@ public final class MainActivity extends Activity {
                 .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
     }
 
-    /** Extract only model assets; no speech or conversation is written to disk. */
-    private File unpackModel() throws IOException {
-        String uuid;
-        try (InputStream input = getAssets().open(MODEL_ASSET + "/uuid")) {
-            uuid = new String(readSmallFile(input), StandardCharsets.UTF_8).trim();
+    /** Copy and verify only the packaged model; microphone samples stay in memory. */
+    private File unpackWhisperModel() throws IOException {
+        String expected;
+        try (InputStream input = getAssets().open(MODEL_ASSET + ".sha256")) {
+            expected = new String(readSmallFile(input), StandardCharsets.UTF_8).trim();
         }
-        if (uuid.isEmpty()) throw new IOException("Missing model identifier");
-        String modelKey;
+        if (!expected.matches("[a-fA-F0-9]{64}")) throw new IOException("Invalid model checksum");
+        File directory = new File(getNoBackupFilesDir(), "whisper-model");
+        if (!directory.isDirectory() && !directory.mkdirs()) throw new IOException("Cannot create model directory");
+        File destination = new File(directory, expected.toLowerCase(Locale.ROOT) + ".bin");
+        if (destination.isFile() && expected.equalsIgnoreCase(fileSha256(destination))) return destination;
+        File temporary = new File(directory, expected + ".preparing");
         try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(uuid.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hex = new StringBuilder();
-            for (byte item : digest) hex.append(String.format(Locale.ROOT, "%02x", item & 255));
-            modelKey = hex.toString();
-        } catch (NoSuchAlgorithmException impossible) {
-            throw new IOException("SHA-256 unavailable", impossible);
-        }
-        File base = new File(getNoBackupFilesDir(), "speech-models");
-        if (!base.isDirectory() && !base.mkdirs()) throw new IOException("Cannot create model directory");
-        File destination = new File(base, modelKey);
-        File marker = new File(destination, "uuid");
-        if (marker.isFile()) {
-            try (InputStream input = new FileInputStream(marker)) {
-                if (uuid.equals(new String(readSmallFile(input), StandardCharsets.UTF_8).trim())) {
-                    return destination;
+            try (InputStream input = getAssets().open(MODEL_ASSET, AssetManager.ACCESS_STREAMING);
+                 FileOutputStream output = new FileOutputStream(temporary)) {
+                byte[] buffer = new byte[65536];
+                int size;
+                while ((size = input.read(buffer)) != -1) {
+                    if (destroyed) throw new IOException("Activity closed while preparing model");
+                    output.write(buffer, 0, size);
                 }
             }
-        }
-        File staging = new File(base, "preparing-" + UUID.randomUUID());
-        if (!staging.mkdirs()) throw new IOException("Cannot prepare model directory");
-        try {
-            copyModelAssets(MODEL_ASSET, staging);
-            if (!staging.renameTo(destination) && !new File(destination, "uuid").isFile()) {
-                throw new IOException("Cannot finalize model directory");
-            }
+            if (!expected.equalsIgnoreCase(fileSha256(temporary))) throw new IOException("Offline model checksum mismatch");
+            if (destination.exists() && !destination.delete()) throw new IOException("Cannot replace incomplete model");
+            if (!temporary.renameTo(destination)) throw new IOException("Cannot finalize offline model");
             return destination;
         } finally {
-            deleteDirectory(staging);
+            if (temporary.exists()) temporary.delete();
+        }
+    }
+
+    private static String fileSha256(File file) throws IOException {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (InputStream input = new FileInputStream(file)) {
+                byte[] buffer = new byte[65536];
+                int count;
+                while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count);
+            }
+            StringBuilder hex = new StringBuilder();
+            for (byte value : digest.digest()) hex.append(String.format(Locale.ROOT, "%02x", value & 255));
+            return hex.toString();
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IOException("SHA-256 unavailable", impossible);
         }
     }
 
@@ -445,36 +451,6 @@ public final class MainActivity extends Activity {
             result.write(buffer, 0, size);
         }
         return result.toByteArray();
-    }
-
-    private void copyModelAssets(String assetPath, File target) throws IOException {
-        String[] children = getAssets().list(assetPath);
-        if (children == null) throw new IOException("Cannot read model assets");
-        for (String child : children) {
-            if (child.contains("/") || child.contains("\\") || child.equals("..")) {
-                throw new IOException("Invalid model asset path");
-            }
-            String path = assetPath + "/" + child;
-            File output = new File(target, child);
-            String[] nested = getAssets().list(path);
-            if (nested != null && nested.length > 0) {
-                if (!output.mkdirs()) throw new IOException("Cannot create model subdirectory");
-                copyModelAssets(path, output);
-            } else {
-                try (InputStream input = getAssets().open(path);
-                     FileOutputStream stream = new FileOutputStream(output)) {
-                    byte[] buffer = new byte[32768];
-                    int size;
-                    while ((size = input.read(buffer)) != -1) stream.write(buffer, 0, size);
-                }
-            }
-        }
-    }
-
-    private static void deleteDirectory(File file) {
-        File[] children = file.listFiles();
-        if (children != null) for (File child : children) deleteDirectory(child);
-        if (file.exists()) file.delete();
     }
 
     public final class NativeBridge {
@@ -597,7 +573,18 @@ public final class MainActivity extends Activity {
         captureRequested.set(true);
         emit("transcript", object("text", "", "final", false));
         emit("listening", object("active", true));
-        audioWorker.execute(this::captureAudio);
+        OfflineWhisper activeModel = model;
+        if (activeModel == null) {
+            captureRequested.set(false);
+            captureBusy.set(false);
+            emit("listening", object("active", false));
+            error("O modelo offline ainda está sendo preparado.");
+            return;
+        }
+        activeModel.beginSession();
+        SpeechSession session = new SpeechSession(++speechSessionSequence, activeModel);
+        speechSession = session;
+        audioWorker.execute(() -> captureAudio(session));
     }
 
     private void beginDeviceCapture() {
@@ -709,73 +696,139 @@ public final class MainActivity extends Activity {
         emit("listening", object("active", false));
     }
 
+    private static final class SpeechSession {
+        final long id;
+        final OfflineWhisper engine;
+        final AtomicInteger pending = new AtomicInteger();
+        final AtomicBoolean completedEvent = new AtomicBoolean();
+        final StringBuilder completed = new StringBuilder();
+        volatile boolean ended;
+        volatile boolean cancelled;
+
+        SpeechSession(long id, OfflineWhisper engine) {
+            this.id = id;
+            this.engine = engine;
+        }
+    }
+
+    private void queueSpeech(SpeechSession session, float[] samples) {
+        if (samples == null || session.cancelled || destroyed) return;
+        synchronized (session) {
+            if (session.pending.incrementAndGet() > 4) {
+                session.pending.decrementAndGet();
+                captureRequested.set(false);
+                java.util.Arrays.fill(samples, 0.0f);
+                error("O aparelho precisa de uma pausa para transcrever. Aguarde o processamento terminar antes de continuar.");
+                return;
+            }
+            emit("processing", object("active", true));
+            recognizerMessage = "Processando a fala no aparelho. O texto aparece após pequenas pausas.";
+            publishCapabilities();
+        }
+        decodeWorker.execute(() -> {
+            try {
+                if (session.cancelled || destroyed) return;
+                String text = session.engine.transcribe(samples).trim();
+                if (!session.cancelled && !destroyed && session == speechSession) {
+                    appendRecognized(session.completed, text);
+                    emit("transcript", object("text", session.completed.toString(), "final", true));
+                    if (session.completed.length() >= MAX_TEXT_LENGTH) {
+                        captureRequested.set(false);
+                        AudioRecord active = recorder;
+                        if (active != null) {
+                            try { active.stop(); } catch (IllegalStateException ignored) { }
+                        }
+                        error("A conversa chegou a 8.000 caracteres. Inicie uma nova transcrição para continuar.");
+                    }
+                }
+            } catch (IOException | RuntimeException | LinkageError exception) {
+                if (!session.cancelled && !destroyed) {
+                    error("Não foi possível transcrever este trecho. Aproxime o celular e tente falar de novo.");
+                }
+            } finally {
+                java.util.Arrays.fill(samples, 0.0f);
+                synchronized (session) {
+                    if (session.pending.decrementAndGet() == 0 && session == speechSession) {
+                        emit("processing", object("active", false));
+                        recognizerMessage = "Transcrição offline em português pronta. As frases aparecem após pequenas pausas.";
+                        publishCapabilities();
+                    }
+                    finishSessionIfDrained(session);
+                }
+            }
+        });
+    }
+
+    private void finishSessionIfDrained(SpeechSession session) {
+        synchronized (session) {
+            if (!session.ended || session.pending.get() != 0 || !session.completedEvent.compareAndSet(false, true)) return;
+            // All final text events are already queued before releasing the next capture.
+            emit("processing", object("active", false));
+            emit("listening", object("active", false));
+            if (session == speechSession) captureBusy.set(false);
+        }
+    }
+
     @SuppressLint("MissingPermission")
-    private void captureAudio() {
+    private void captureAudio(SpeechSession session) {
         AudioRecord localRecorder = null;
-        Recognizer recognizer = null;
-        StringBuilder completed = new StringBuilder();
-        String lastPublished = "";
+        SpeechChunker chunker = new SpeechChunker();
+        short[] buffer = new short[3200];
+        short[] frame = new short[320];
         try {
             if (!captureRequested.get() || destroyed) return;
             int minimum = AudioRecord.getMinBufferSize(SAMPLE_RATE,
                     AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
             if (minimum <= 0) throw new IOException("Unsupported microphone format");
-            recognizer = new Recognizer(model, SAMPLE_RATE);
             localRecorder = new AudioRecord.Builder()
                     .setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
                     .setAudioFormat(new AudioFormat.Builder().setSampleRate(SAMPLE_RATE)
                             .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                             .setChannelMask(AudioFormat.CHANNEL_IN_MONO).build())
                     .setBufferSizeInBytes(Math.max(minimum, SAMPLE_RATE)).build();
-            if (localRecorder.getState() != AudioRecord.STATE_INITIALIZED) {
-                throw new IOException("Microphone unavailable");
-            }
+            if (localRecorder.getState() != AudioRecord.STATE_INITIALIZED) throw new IOException("Microphone unavailable");
             recorder = localRecorder;
             if (!captureRequested.get()) return;
             localRecorder.startRecording();
-            if (localRecorder.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING) {
-                throw new IOException("Microphone did not start");
-            }
-            short[] buffer = new short[3200];
+            if (localRecorder.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING) throw new IOException("Microphone did not start");
             while (captureRequested.get() && !destroyed) {
                 int count = localRecorder.read(buffer, 0, buffer.length, AudioRecord.READ_BLOCKING);
                 if (count < 0) {
                     if (!captureRequested.get()) break;
                     throw new IOException("Microphone read failed");
                 }
-                if (count == 0) continue;
-                boolean segmentFinal = recognizer.acceptWaveForm(buffer, count);
-                JSONObject hypothesis = new JSONObject(segmentFinal
-                        ? recognizer.getResult() : recognizer.getPartialResult());
-                String partial = hypothesis.optString(segmentFinal ? "text" : "partial", "").trim();
-                if (segmentFinal) appendRecognized(completed, partial);
-                String display = segmentFinal ? completed.toString() : combine(completed, partial);
-                if (!display.equals(lastPublished)) {
-                    emit("transcript", object("text", display, "final", segmentFinal));
-                    lastPublished = display;
-                }
-                if (display.length() >= MAX_TEXT_LENGTH) {
-                    captureRequested.set(false);
-                    error("A conversa chegou a 8.000 caracteres. Inicie uma nova transcrição para continuar.");
+                for (int offset = 0; offset < count; offset += frame.length) {
+                    int frameSize = Math.min(frame.length, count - offset);
+                    System.arraycopy(buffer, offset, frame, 0, frameSize);
+                    queueSpeech(session, chunker.accept(frame, frameSize));
                 }
             }
-            appendRecognized(completed, new JSONObject(recognizer.getFinalResult()).optString("text", ""));
-            emit("transcript", object("text", completed.toString(), "final", true));
-        } catch (IOException | RuntimeException | JSONException | LinkageError exception) {
+            if (!session.cancelled && !destroyed) queueSpeech(session, chunker.finish());
+        } catch (IOException | RuntimeException exception) {
             if (captureRequested.get() && !destroyed) {
-                error("Não foi possível usar o microfone. Confira a permissão, se ele está liberado no aparelho e se outro aplicativo está usando o áudio.");
+                error("Não foi possível usar o microfone. Confira a permissão e se outro aplicativo está usando o áudio.");
             }
         } finally {
+            java.util.Arrays.fill(buffer, (short) 0);
+            java.util.Arrays.fill(frame, (short) 0);
+            chunker.finish();
             captureRequested.set(false);
             recorder = null;
             if (localRecorder != null) {
                 try { localRecorder.stop(); } catch (IllegalStateException ignored) { }
                 localRecorder.release();
             }
-            if (recognizer != null) recognizer.close();
-            emit("listening", object("active", false));
-            captureBusy.set(false);
+            session.ended = true;
+            finishSessionIfDrained(session);
         }
+    }
+
+    private void cancelInference() {
+        SpeechSession session = speechSession;
+        if (session != null) session.cancelled = true;
+        OfflineWhisper activeModel = model;
+        if (activeModel != null) activeModel.cancel();
+        emit("processing", object("active", false));
     }
 
     private static void appendRecognized(StringBuilder completed, String text) {
@@ -856,6 +909,7 @@ public final class MainActivity extends Activity {
     @Override
     protected void onPause() {
         resumed = false;
+        cancelInference();
         stopCapture();
         stopSpeech();
         super.onPause();
@@ -865,6 +919,7 @@ public final class MainActivity extends Activity {
     protected void onDestroy() {
         destroyed = true;
         startAfterPermission = false;
+        cancelInference();
         stopCapture();
         if (tts != null) {
             tts.stop();
@@ -876,9 +931,13 @@ public final class MainActivity extends Activity {
             onDeviceRecognizer = null;
         }
         audioWorker.execute(() -> {
-            Model loaded = model;
-            model = null;
-            if (loaded != null) loaded.close();
+            // Capture has ended, so no more chunks can enter the decoder queue.
+            decodeWorker.execute(() -> {
+                OfflineWhisper loaded = model;
+                model = null;
+                if (loaded != null) loaded.close();
+            });
+            decodeWorker.shutdown();
         });
         audioWorker.shutdown();
         if (web != null) {
